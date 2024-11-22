@@ -1,0 +1,1 @@
+# rigged_model_loading
