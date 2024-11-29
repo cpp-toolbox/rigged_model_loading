@@ -67,6 +67,7 @@ class RecIvptRiggedCollector {
     const aiScene *scene; // for ease
     std::string directory_to_asset_being_loaded;
     std::vector<IVPTRigged> ivptrs;
+    int recursion_level_counter = 0;
     void rec_process_nodes(aiNode *node, const aiScene *scene);
 
     // we work with the transforms of the bones of a mesh, but we never look at the root bone/node's transform
@@ -81,6 +82,8 @@ class RecIvptRiggedCollector {
     std::vector<IVPTRigged> parse_model_into_ivptrs(const std::string &model_path);
     std::vector<VertexBoneData> process_mesh_vertices_bone_data(aiMesh *mesh);
     IVPTRigged process_mesh_ivptrs(aiMesh *mesh, const aiScene *scene);
+
+    int update_animation_matrices_recursion_level_counter = 0;
     // this is used for for eventually binding into uniforms with all the matrices, then in the shader
     // we also have a vertex attribute for each vertex which specifies the id of which matrices to use...
     void set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set);

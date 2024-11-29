@@ -1,5 +1,95 @@
 #include "rigged_model_loading.hpp"
 #include <assimp/postprocess.h>
+/**
+ * @brief Extracts the scale vector from a 4x4 transformation matrix.
+ *
+ * @param transformation_matrix The 4x4 transformation matrix.
+ * @return glm::vec3 The scale factors along the X, Y, and Z axes.
+ */
+glm::vec3 parse_scale_matrix(const glm::mat4 &transformation_matrix) {
+    glm::vec3 scale;
+    scale.x = glm::length(glm::vec3(transformation_matrix[0])); // Length of the X-axis column vector
+    scale.y = glm::length(glm::vec3(transformation_matrix[1])); // Length of the Y-axis column vector
+    scale.z = glm::length(glm::vec3(transformation_matrix[2])); // Length of the Z-axis column vector
+    return scale;
+}
+
+/**
+ * @brief Extracts the translation vector from a 4x4 transformation matrix.
+ *
+ * @param transformation_matrix The 4x4 transformation matrix.
+ * @return glm::vec3 The translation vector (X, Y, Z).
+ */
+glm::vec3 parse_translation_matrix(const glm::mat4 &transformation_matrix) {
+    return glm::vec3(transformation_matrix[3][0], transformation_matrix[3][1], transformation_matrix[3][2]);
+}
+
+/**
+ * @brief Converts a rotation matrix to Euler angles (in degrees).
+ *
+ * @param rotation_matrix The 4x4 rotation matrix.
+ * @return glm::vec3 A vector containing Euler angles (pitch, yaw, roll) in degrees.
+ */
+glm::vec3 matrix_to_euler_angles(const glm::mat4 &rotation_matrix) {
+    // Extract the rotation part (upper-left 3x3 matrix)
+    glm::mat3 rot(rotation_matrix);
+
+    // Calculate Euler angles
+    float sy = std::sqrt(rot[0][0] * rot[0][0] + rot[1][0] * rot[1][0]);
+
+    bool singular = sy < 1e-6; // Check for gimbal lock (singular case)
+
+    float pitch, yaw, roll;
+    if (!singular) {
+        pitch = std::atan2(rot[2][1], rot[2][2]);
+        yaw = std::atan2(-rot[2][0], sy);
+        roll = std::atan2(rot[1][0], rot[0][0]);
+    } else {
+        pitch = std::atan2(-rot[1][2], rot[1][1]);
+        yaw = std::atan2(-rot[2][0], sy);
+        roll = 0; // Roll is undefined in singularity; we set it to 0
+    }
+
+    // Convert from radians to degrees
+    return glm::degrees(glm::vec3(pitch, yaw, roll));
+}
+
+/**
+ * @brief Print a vector (scale, translation, or Euler angles) in a readable format.
+ *
+ * @param vec The glm::vec3 containing the values to print.
+ * @param description A description of what the vector represents.
+ */
+void print_vector(const glm::vec3 &vec, const std::string &description, int indentation_level = 0) {
+    std::string indentation(indentation_level * 2, '   '); // 2 spaces per level
+    std::cout << indentation << description << ":" << std::endl;
+    std::cout << indentation << "X: " << vec.x << std::endl;
+    std::cout << indentation << "Y: " << vec.y << std::endl;
+    std::cout << indentation << "Z: " << vec.z << std::endl;
+}
+
+void print_matrix(const glm::mat4 &matrix, const std::string &description, int indentation_level = 0) {
+    // Generate indentation based on the provided level
+    std::string indentation(indentation_level * 2, '   '); // 2 spaces per level
+
+    // Print description with indentation
+    std::cout << indentation << description << ":\n";
+
+    // Print top border of the box
+    std::cout << indentation << "+------------------------+" << std::endl;
+
+    // Print matrix rows with box around them
+    for (int row = 0; row < 4; ++row) {
+        std::cout << indentation << "| "; // Left border
+        for (int col = 0; col < 4; ++col) {
+            std::cout << matrix[row][col] << " "; // Matrix values
+        }
+        std::cout << std::endl; // Right border
+    }
+
+    // Print bottom border of the box
+    std::cout << indentation << "+------------------------+" << std::endl;
+}
 
 glm::mat4 ai_matrix4x4_to_glm_mat4(const aiMatrix4x4 &ai_mat) {
     glm::mat4 glm_mat;
@@ -45,22 +135,69 @@ glm::mat4 ai_matrix3x3_to_glm_mat4(const aiMatrix3x3 &ai_mat) {
 
 // should only ever get called once
 void RecIvptRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scene) {
+    // Helper to generate indentation based on the recursion level
+    auto get_indentation = [this]() {
+        return std::string(recursion_level_counter * 2, ' '); // 2 spaces per level
+    };
+
+    std::cout << get_indentation() << "Recursion Level: " << recursion_level_counter << std::endl;
+
+    // Print the name of the current node
+    if (node->mName.length > 0) {
+        std::cout << get_indentation() << "Processing Node: " << node->mName.C_Str() << std::endl;
+    } else {
+        std::cout << get_indentation() << "Processing Node: (Unnamed)" << std::endl;
+    }
+
+    // Print the number of meshes in the current node
+    std::cout << get_indentation() << "Number of Meshes in Node: " << node->mNumMeshes << std::endl;
+
+    // Process each mesh in the current node
     for (unsigned int i = 0; i < node->mNumMeshes; i++) {
         unsigned int mesh_index = node->mMeshes[i];
         aiMesh *mesh = scene->mMeshes[mesh_index];
+
+        // Print details about the mesh
+        std::cout << get_indentation() << "  Mesh Index: " << mesh_index << std::endl;
+        std::cout << get_indentation()
+                  << "  Mesh Name: " << (mesh->mName.length > 0 ? mesh->mName.C_Str() : "(Unnamed)") << std::endl;
+        std::cout << get_indentation() << "  Number of Vertices: " << mesh->mNumVertices << std::endl;
+        std::cout << get_indentation() << "  Number of Faces: " << mesh->mNumFaces << std::endl;
+
+        // Store processed mesh data
         this->ivptrs.push_back(process_mesh_ivptrs(mesh, scene));
     }
 
+    // Print the number of children for the current node
+    std::cout << get_indentation() << "Number of Children: " << node->mNumChildren << std::endl;
+
+    // Recurse into child nodes
     for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        std::cout << get_indentation() << "Recursing into Child " << i + 1 << "/" << node->mNumChildren << std::endl;
+        recursion_level_counter++;
         this->rec_process_nodes(node->mChildren[i], scene);
+        recursion_level_counter--; // Decrement after returning from recursion
     }
+
+    // Indicate end of node processing
+    std::cout << get_indentation()
+              << "Finished Processing Node: " << (node->mName.length > 0 ? node->mName.C_Str() : "(Unnamed)")
+              << std::endl;
 }
 
 void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_ticks, glm::mat4 parent_transform,
                                                            aiNode *node, const aiScene *scene) {
+    // Helper to generate indentation based on the recursion level
+    auto get_indentation = [this]() {
+        return std::string(update_animation_matrices_recursion_level_counter * 2, ' '); // 2 spaces per level
+    };
+
     glm::mat4 local_to_parent_bone_space_transform = ai_matrix4x4_to_glm_mat4(node->mTransformation);
 
     std::string node_name(node->mName.data);
+
+    // Indented print output
+    std::cout << get_indentation() << "working on node: " << node_name << std::endl;
 
     // TODO in the future load different animations
     const aiAnimation *animation = scene->mAnimations[0];
@@ -70,34 +207,50 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
     bool user_requested_no_anim = animation_time_ticks == -1;
 
     if (not user_requested_no_anim and node_is_animated) {
+
+        std::cout << get_indentation() << "current node has an animation" << std::endl;
         aiVector3D scaling;
         calc_interpolated_scaling(scaling, animation_time_ticks, node_anim);
         glm::vec3 glm_scaling(scaling.x, scaling.y, scaling.z);
         glm::mat4 scale_transform = glm::scale(glm::mat4(1.0f), glm_scaling);
         scale_transform = glm::mat4(1.0);
 
-        /*print_matrix(scale_transform, "scale matrix");*/
+        // Indented print matrix output
+        print_matrix(scale_transform, "scale matrix", update_animation_matrices_recursion_level_counter);
+        print_vector(parse_scale_matrix(scale_transform), "scale_matrix",
+                     update_animation_matrices_recursion_level_counter);
 
         aiQuaternion rotation;
         calc_interpolated_rotation(rotation, animation_time_ticks, node_anim);
         glm::mat4 rotation_transform = ai_matrix3x3_to_glm_mat4(rotation.GetMatrix());
-        /*rotation_transform = glm::mat4(1.0);*/
-        /*print_matrix(rotation_transform, "rotation matrix");*/
+        // Indented print matrix output
+        print_vector(matrix_to_euler_angles(rotation_transform), "rotation in euler angles",
+                     update_animation_matrices_recursion_level_counter);
 
         aiVector3D translation;
         calc_interpolated_translation(translation, animation_time_ticks, node_anim);
         glm::vec3 glm_translation(translation.x, translation.y, translation.z);
         glm::mat4 translation_transform = glm::translate(glm::mat4(1.0f), glm_translation);
-        /*print_matrix(translation_transform, "translation matrix");*/
+        // Indented print matrix output
+        print_vector(parse_translation_matrix(translation_transform), "translation",
+                     update_animation_matrices_recursion_level_counter);
 
         // we overwrite here based on assimp's documentation, when there is animation we don't use
         // mTransformation
         local_to_parent_bone_space_transform = translation_transform * rotation_transform * scale_transform;
     }
 
+    std::cout << get_indentation() << "computed matrices" << std::endl;
+
     // note that the recursion goes outward towards leaves, but we think the other way, associativity of
     // matrix multiplication reconciles this.
     glm::mat4 bone_to_local_transform_up_to_this_node = parent_transform * local_to_parent_bone_space_transform;
+
+    print_matrix(local_to_parent_bone_space_transform, "local_to_parent_bone_space_transform",
+                 update_animation_matrices_recursion_level_counter);
+    print_matrix(parent_transform, "parent_transform", update_animation_matrices_recursion_level_counter);
+    print_matrix(bone_to_local_transform_up_to_this_node, "bone_to_local_transform_up_to_this_node ",
+                 update_animation_matrices_recursion_level_counter);
 
     bool this_node_is_a_bone_and_weve_processed_its_vertex_data =
         bone_name_to_unique_index.find(node_name) != bone_name_to_unique_index.end();
@@ -107,14 +260,19 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
         /*std::cout << "bone name" << node_name << std::endl;*/
         int bone_idx = bone_name_to_unique_index[node_name];
         auto &bi =
-            bone_unique_idx_to_info[bone_idx]; // this is guarenteed safe cause already exists in there for some reason
+            bone_unique_idx_to_info[bone_idx]; // this is guaranteed safe cause already exists in there for some reason
         bi.full_bone_space_to_local_space_transformation = inverse_root_node_transform *
                                                            bone_to_local_transform_up_to_this_node *
                                                            bi.local_space_to_bone_space_in_bind_pose_transformation;
+
+        // Indented print matrix output
+        print_matrix(bi.full_bone_space_to_local_space_transformation, "full_bone_space_to_local_space_transformation",
+                     update_animation_matrices_recursion_level_counter);
     }
 
     /*spdlog::get(Systems::asset_loading)->info("finished processing meshes");*/
     for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        update_animation_matrices_recursion_level_counter++;
         rec_update_animation_matrices(animation_time_ticks, bone_to_local_transform_up_to_this_node, node->mChildren[i],
                                       scene);
     }
@@ -269,12 +427,14 @@ uint find_idx_of_translation_key_for_given_time(float animation_time_ticks, cons
 }
 
 void RecIvptRiggedCollector::update_animation_matrices(float animation_time_ticks) {
+    update_animation_matrices_recursion_level_counter = 0;
     rec_update_animation_matrices(animation_time_ticks, glm::mat4(1.0f), this->scene->mRootNode, this->scene);
 }
 
 // Note that this data is state and contains information about the vertices of the mesh, that only need to
 // be computed exactly one time, this data should get buffered into opengl one time.
 std::vector<IVPTRigged> RecIvptRiggedCollector::parse_model_into_ivptrs(const std::string &model_path) {
+    recursion_level_counter = 0;
     const aiScene *scene =
         this->importer.ReadFile(model_path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
     this->scene = scene;
