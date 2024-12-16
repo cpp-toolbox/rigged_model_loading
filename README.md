@@ -19,3 +19,6 @@ You must name your armatures using the following format `X_..._armature` eg) `ch
 When creating animations you usally use the child-of constraint to make an object follow another object, such has keeping an object in a characters hand while they move the hand around, since this is a blender specific thing and not specified in regular keyframes which only contain rotation, translation and scale of bones, then when exporting you have to make sure you bake your actions, which pretty much gets rid of the constraints and instead bakes in the translation that would have resulted from that constraint, allowing for the exported format animation to contain all the data required to render the animation, to do this open the bake action dialog and use these settings: 
 
 ![image](https://github.com/user-attachments/assets/68de5be2-245a-4d10-86e8-c21645cafc8d)
+
+
+**Note: When using the child of constraint it's important that you set the inverse transform relative to the origin of the scene or else when you parent it might not work correctly**
