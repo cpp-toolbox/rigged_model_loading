@@ -59,6 +59,7 @@ struct BoneInfo {
     BoneInfo(const glm::mat4 &lstbst) { local_space_to_bone_space_in_bind_pose_transformation = lstbst; }
 };
 
+// note that you must make sure all your bone names are unique right now until further improvments
 class RecIvptRiggedCollector {
   public:
     // we make this here so that we always have access to the importer throughout the lifetime of this object
@@ -67,6 +68,7 @@ class RecIvptRiggedCollector {
     const aiScene *scene; // for ease
     std::string directory_to_asset_being_loaded;
     std::vector<IVPTRigged> ivptrs;
+    bool swap_y_and_z;
     int recursion_level_counter = 0;
     void rec_process_nodes(aiNode *node, const aiScene *scene);
 
@@ -79,20 +81,30 @@ class RecIvptRiggedCollector {
     int get_next_bone_id(const aiBone *pBone);
     std::unordered_map<std::string, int> bone_name_to_unique_index; // one for each bone.
     std::vector<BoneInfo> bone_unique_idx_to_info;
-    std::vector<IVPTRigged> parse_model_into_ivptrs(const std::string &model_path);
+    std::vector<IVPTRigged> parse_model_into_ivptrs(const std::string &model_path, bool swap_y_and_z = true);
     std::vector<VertexBoneData> process_mesh_vertices_bone_data(aiMesh *mesh);
     IVPTRigged process_mesh_ivptrs(aiMesh *mesh, const aiScene *scene);
 
-    int update_animation_matrices_recursion_level_counter = 0;
+    /*std::string curr_armature_name_rec = "";*/
+    unsigned int curr_animation_index_rec = 0;
+    std::unordered_map<std::string, unsigned int> armature_node_name_to_animation_index;
+
     // this is used for for eventually binding into uniforms with all the matrices, then in the shader
     // we also have a vertex attribute for each vertex which specifies the id of which matrices to use...
     void set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set);
     void update_animation_matrices(float animation_time_ticks);
     void rec_update_animation_matrices(float animation_time_ticks, glm::mat4 parent_transform, aiNode *node,
-                                       const aiScene *scene);
+                                       const aiScene *scene, int rec_depth);
 };
 
 const aiNodeAnim *find_node_anim(const aiAnimation *pAnimation, const std::string &NodeName);
+std::string get_full_node_path(const aiNode *node);
+void print_all_animations(const aiScene *scene);
+void print_ai_animation(const aiAnimation *anim);
+unsigned int find_animation_index_by_name(const aiScene *scene, const std::string &animationName);
+
+bool is_armature_node(const aiNode *node);
+std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(const aiScene *scene);
 
 uint find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
 uint find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
