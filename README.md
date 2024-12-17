@@ -16,7 +16,13 @@ You must name your armatures using the following format `X_..._armature` eg) `ch
 
 ## animations with constraints
 
-When creating animations you usally use the child-of constraint to make an object follow another object, such has keeping an object in a characters hand while they move the hand around, since this is a blender specific thing and not specified in regular keyframes which only contain rotation, translation and scale of bones, then when exporting you have to make sure you bake your actions <b>make sure to keep the cursor at 0 when you bake the animation (I'm not sure why this has to happen yet)</b>, which pretty much gets rid of the constraints and instead bakes in the translation that would have resulted from that constraint, allowing for the exported format animation to contain all the data required to render the animation, to do this open the bake action dialog and use these settings: 
+When creating animations you usally use the child-of constraint to make an object follow another object, such has keeping an object in a characters hand while they move the hand around, since this is a blender specific thing and not specified in regular keyframes which only contain rotation, translation and scale of bones, then when exporting you have to make sure of the following: 
+
+*  bake your actions <b>make sure to keep the cursor at 0 when you bake the animation (I'm not sure why this has to happen yet)</b>
+* When baking your actions be sure all of the individual armatures are selected if you don't do this and some of the animations on your armatures start a different moments in time then their animations will not be in sync
+* Mka eusre that that you give all armatures some key frames that assimp believes they are animated.
+
+ which pretty much gets rid of the constraints and instead bakes in the translation that would have resulted from that constraint, allowing for the exported format animation to contain all the data required to render the animation, to do this open the bake action dialog and use these settings: 
 
 ![image](https://github.com/user-attachments/assets/29d8b148-b5bf-41d7-b3c7-9ff417de1330)
 
