@@ -242,7 +242,7 @@ void RecIvptRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scen
         return std::string(recursion_level_counter * 2, ' '); // 2 spaces per level
     };
 
-    bool logging = true;
+    bool logging = false;
 
     if (logging) {
         std::cout << get_indentation() << "Recursion Level: " << recursion_level_counter << std::endl;
@@ -307,7 +307,7 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
         return std::string(rec_depth * 2, ' '); // 2 spaces per level
     };
 
-    bool logging = true;
+    bool logging = false;
 
     if (logging) {
         std::cout << "rec_update_animation_matrices just called with animation time: " << animation_time_ticks
@@ -338,7 +338,7 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
     }
 
     // TODO in the future load different animations
-    const aiAnimation *animation = scene->mAnimations[curr_animation_index_rec == 3 ? 2 : curr_animation_index_rec];
+    const aiAnimation *animation = scene->mAnimations[curr_animation_index_rec];
     const aiNodeAnim *node_anim = find_node_anim(animation, node_name);
 
     bool node_is_animated = node_anim != NULL;
@@ -484,7 +484,7 @@ void RecIvptRiggedCollector::set_bone_transforms(float time_in_seconds, std::vec
     float time_in_ticks = ticks_per_second * time_in_seconds;
     float animation_time_ticks = fmod(time_in_ticks, (float)scene->mAnimations[0]->mDuration);
 
-    bool logging = true;
+    bool logging = false;
 
     if (logging) {
         std::cout << "=== STARTING UPDATE ANIMATION MATRICES ===" << std::endl;
@@ -504,6 +504,7 @@ void RecIvptRiggedCollector::set_bone_transforms(float time_in_seconds, std::vec
 void calc_interpolated_scaling(aiVector3D &out, float animation_time_ticks, const aiNodeAnim *node_anim) {
     // we need at least two values to interpolate...
     if (node_anim->mNumScalingKeys == 1) {
+        std::cout << "there is only one scaling key, scaling animation will not be applied" << std::endl;
         out = node_anim->mScalingKeys[0].mValue;
         return;
     }
@@ -531,6 +532,7 @@ void calc_interpolated_scaling(aiVector3D &out, float animation_time_ticks, cons
 void calc_interpolated_rotation(aiQuaternion &out, float animation_time_ticks, const aiNodeAnim *node_anim) {
     // we need at least two values to interpolate...
     if (node_anim->mNumRotationKeys == 1) {
+        std::cout << "there is only one rotation key, scaling animation will not be applied" << std::endl;
         out = node_anim->mRotationKeys[0].mValue;
         return;
     }
@@ -556,6 +558,7 @@ void calc_interpolated_rotation(aiQuaternion &out, float animation_time_ticks, c
 void calc_interpolated_translation(aiVector3D &out, float animation_time_ticks, const aiNodeAnim *node_anim) {
     // we need at least two values to interpolate...
     if (node_anim->mNumPositionKeys == 1) {
+        std::cout << "there is only one position key, scaling animation will not be applied" << std::endl;
         out = node_anim->mPositionKeys[0].mValue;
         return;
     }
@@ -836,10 +839,10 @@ std::vector<VertexBoneData> RecIvptRiggedCollector::process_mesh_vertices_bone_d
     // Initialize the vector with one VertexBoneData object per vertex
     std::vector<VertexBoneData> bone_data_for_mesh(mesh->mNumVertices);
 
+    std::cout << "working on bones of a mesh now it has: " << mesh->mNumBones << "bones" << std::endl;
     for (unsigned int i = 0; i < mesh->mNumBones; i++) {
         auto bone = mesh->mBones[i];
-        /*std::cout << "Bone '" << bone->mName.C_Str() << "' affects " << bone->mNumWeights << " vertices" <<
-         * std::endl;*/
+        std::cout << "Bone '" << bone->mName.C_Str() << "' affects " << bone->mNumWeights << " vertices" << std::endl;
 
         int bone_id = get_next_bone_id(bone);
 
@@ -882,7 +885,7 @@ void VertexBoneData::add_bone_data(uint BoneID, float Weight) {
         }
     }
 
-    bool logging = true;
+    bool logging = false;
     if (logging) {
         std::cout << "was about to add bone data, but we've already associated 4 weights, not adding" << std::endl;
     }
