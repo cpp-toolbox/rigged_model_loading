@@ -16,7 +16,9 @@ You must name your armatures using the following format `X_..._armature` eg) `ch
 
 ## animations with constraints
 
-When creating animations you usally use the child-of constraint to make an object follow another object, such has keeping an object in a characters hand while they move the hand around, since this is a blender specific thing and not specified in regular keyframes which only contain rotation, translation and scale of bones, then when exporting you have to make sure of the following: 
+When creating animations you usally use the child-of constraint to make an object follow another object, such has keeping an object in a characters hand while they move the hand around. Note that managing the transforms of objects that use these constraints can become very combersome quickly when transfering objects between parents, if you work on animations that use a lot of re-parenting I thoroughly recommend the dynamic parent plugin.
+
+Since constraints are a blender specific thing and not specified in regular keyframes which only contain rotation, translation and scale of bones, then when exporting you have to make sure of the following: 
 
 *  bake your actions <b>make sure to keep the cursor at 0 when you bake the animation (I'm not sure why this has to happen yet)</b>
 * When baking your actions be sure all of the individual armatures are selected if you don't do this and some of the animations on your armatures start a different moments in time then their animations will not be in sync
