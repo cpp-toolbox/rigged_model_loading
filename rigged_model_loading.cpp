@@ -236,7 +236,7 @@ void print_armature_to_animation_map(const std::unordered_map<std::string, unsig
 }
 
 // should only ever get called once
-void RecIvptRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scene) {
+void RecIvpntRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scene) {
     // Helper to generate indentation based on the recursion level
     auto get_indentation = [this]() {
         return std::string(recursion_level_counter * 2, ' '); // 2 spaces per level
@@ -273,7 +273,7 @@ void RecIvptRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scen
         }
 
         // Store processed mesh data
-        this->ivptrs.push_back(process_mesh_ivptrs(mesh, scene));
+        this->ivpntrs.push_back(process_mesh_ivpntrs(mesh, scene));
     }
 
     if (logging) {
@@ -300,8 +300,9 @@ void RecIvptRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scen
     }
 }
 
-void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_ticks, glm::mat4 parent_transform,
-                                                           aiNode *node, const aiScene *scene, int rec_depth) {
+void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time_ticks,
+                                                            glm::mat4 parent_animation_transform_in_local_space,
+                                                            aiNode *node, const aiScene *scene, int rec_depth) {
     // Helper to generate indentation based on the recursion level
     auto get_indentation = [this, &rec_depth]() {
         return std::string(rec_depth * 2, ' '); // 2 spaces per level
@@ -313,10 +314,10 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
         std::cout << "rec_update_animation_matrices just called with animation time: " << animation_time_ticks
                   << " rec_depth: " << rec_depth << std::endl;
 
-        print_matrix(parent_transform, "parent_transform", rec_depth);
+        print_matrix(parent_animation_transform_in_local_space, "parent_transform", rec_depth);
     }
 
-    glm::mat4 local_to_parent_bone_space_transform = ai_matrix4x4_to_glm_mat4(node->mTransformation);
+    glm::mat4 animation_transform_for_current_time_in_bone_space = ai_matrix4x4_to_glm_mat4(node->mTransformation);
 
     std::string node_name(node->mName.data);
 
@@ -375,9 +376,10 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
 
         // we overwrite here based on assimp's documentation, when there is animation we don't use
         // mTransformation
-        local_to_parent_bone_space_transform = translation_transform * rotation_transform * scale_transform;
+        animation_transform_for_current_time_in_bone_space =
+            translation_transform * rotation_transform * scale_transform;
         if (logging) {
-            print_transform(local_to_parent_bone_space_transform, "animation transform (trs)", rec_depth);
+            print_transform(animation_transform_for_current_time_in_bone_space, "animation transform (trs)", rec_depth);
         }
     }
 
@@ -387,13 +389,16 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
 
     // note that the recursion goes outward towards leaves, but we think the other way, associativity of
     // matrix multiplication reconciles this.
-    glm::mat4 bone_to_local_transform_up_to_this_node = parent_transform * local_to_parent_bone_space_transform;
+    glm::mat4 bone_to_local_animation_transform_up_to_this_node =
+        parent_animation_transform_in_local_space * animation_transform_for_current_time_in_bone_space;
 
     if (logging) {
-        print_matrix(parent_transform, "parent_transform", rec_depth);
-        print_matrix(local_to_parent_bone_space_transform, "local_to_parent_bone_space_transform", rec_depth);
-        print_transform(local_to_parent_bone_space_transform, "local_to_parent_bone_space_transform");
-        print_matrix(bone_to_local_transform_up_to_this_node, "bone_to_local_transform_up_to_this_node ", rec_depth);
+        print_matrix(parent_animation_transform_in_local_space, "parent_transform", rec_depth);
+        print_matrix(animation_transform_for_current_time_in_bone_space, " animation_transform_for_current_time",
+                     rec_depth);
+        print_transform(animation_transform_for_current_time_in_bone_space, " animation_transform_for_current_time");
+        print_matrix(bone_to_local_animation_transform_up_to_this_node, "bone_to_local_transform_up_to_this_node ",
+                     rec_depth);
     }
 
     // this variable describes the requirement for membership into the bone_name_to_unique_index
@@ -409,46 +414,22 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
         int bone_idx = bone_name_to_unique_index[node_name];
         auto &bi =
             bone_unique_idx_to_info[bone_idx]; // this is guaranteed safe cause already exists in there for some reason
-        //
-        /**/
-        /*glm::vec3 scale, translation, skew;*/
-        /*glm::vec4 perspective;*/
-        /*glm::quat rotation;*/
-        /**/
-        /*// Decompose the matrix into its translation, rotation, and scale components*/
-        /*glm::decompose(bi.local_space_to_bone_space_in_bind_pose_transformation, scale, rotation, translation, skew,*/
-        /*               perspective);*/
-        /**/
-        /*// Step 2: Adjust the scale (we want to multiply by 100 in this case)*/
-        /*glm::vec3 new_scale(1, 1, 1); // Corrected scale*/
-        /**/
-        /*// Step 3: Reconstruct the transformation matrix with the new scale*/
-        /*glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0f), new_scale);*/
-        /*glm::mat4 rotation_matrix = glm::toMat4(rotation);*/
-        /*glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), translation);*/
-        /**/
-        /*// Rebuild the transformation matrix with the corrected scale*/
-        /*glm::mat4 corrected_transformation = translation_matrix * rotation_matrix * scale_matrix;*/
-        /**/
-        /*// Step 4: Apply the transformation as needed*/
-        /*bi.full_bone_space_to_local_space_transformation =*/
-        /*    inverse_root_node_transform * bone_to_local_transform_up_to_this_node * corrected_transformation;*/
 
-        /*bi.full_bone_space_to_local_space_transformation =*/
-        /*    inverse_root_node_transform * bone_to_local_transform_up_to_this_node;*/
-
-        bi.full_bone_space_to_local_space_transformation = inverse_root_node_transform *
-                                                           bone_to_local_transform_up_to_this_node *
+        // the idea here is to first go to the bone coordinate system, then apply all the transformations that should
+        // be applied due to the recursion up to this bone, and also make sure that if the armature is displaced, it
+        // also moves via the inverse root_note_transform
+        bi.local_space_animated_transform_upto_this_bone = inverse_root_node_transform *
+                                                           bone_to_local_animation_transform_up_to_this_node *
                                                            bi.local_space_to_bone_space_in_bind_pose_transformation;
 
         if (logging) {
             print_transform(inverse_root_node_transform, "inverse_root_node_transform", rec_depth);
-            print_transform(bone_to_local_transform_up_to_this_node, "bone_to_local_transform_up_to_this_node",
-                            rec_depth);
+            print_transform(bone_to_local_animation_transform_up_to_this_node,
+                            "bone_to_local_transform_up_to_this_node", rec_depth);
             print_transform(bi.local_space_to_bone_space_in_bind_pose_transformation,
                             "bi.local_space_to_bone_space_in_bind_pose_transformation", rec_depth);
 
-            print_transform(bi.full_bone_space_to_local_space_transformation,
+            print_transform(bi.local_space_animated_transform_upto_this_bone,
                             "full_bone_space_to_local_space_transformation", rec_depth);
         }
     } else {
@@ -459,11 +440,11 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
 
     glm::mat4 curr_mat;
     if (node_is_bone) {
-        curr_mat = bone_to_local_transform_up_to_this_node;
+        curr_mat = bone_to_local_animation_transform_up_to_this_node;
     } else {
         // pass it through if not a bone could be bad
         /*curr_mat = parent_transform;*/
-        curr_mat = bone_to_local_transform_up_to_this_node;
+        curr_mat = bone_to_local_animation_transform_up_to_this_node;
     }
 
     /*spdlog::get(Systems::asset_loading)->info("finished processing meshes");*/
@@ -475,7 +456,7 @@ void RecIvptRiggedCollector::rec_update_animation_matrices(float animation_time_
 /*
  * @pre the asset of interest has been loaded already.
  */
-void RecIvptRiggedCollector::set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set) {
+void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set) {
     transforms_to_be_set.resize(bone_unique_idx_to_info.size());
 
     // uses 25 fps if ticks per second was not specified
@@ -497,7 +478,7 @@ void RecIvptRiggedCollector::set_bone_transforms(float time_in_seconds, std::vec
     /*spdlog::info("bone info size", bone_info.size());*/
     for (unsigned int i = 0; i < bone_unique_idx_to_info.size(); i++) {
         /*spdlog::info("setting transform {}", bone_info[i].full_bone_space_to_local_space_transformation[0][0]);*/
-        transforms_to_be_set[i] = bone_unique_idx_to_info[i].full_bone_space_to_local_space_transformation;
+        transforms_to_be_set[i] = bone_unique_idx_to_info[i].local_space_animated_transform_upto_this_bone;
     }
 }
 
@@ -776,18 +757,15 @@ uint find_idx_of_translation_key_for_given_time(float animation_time_ticks, cons
     return 0;
 }
 
-void RecIvptRiggedCollector::update_animation_matrices(float animation_time_ticks) {
+void RecIvpntRiggedCollector::update_animation_matrices(float animation_time_ticks) {
     rec_update_animation_matrices(animation_time_ticks, glm::mat4(1.0f), this->scene->mRootNode, this->scene, 0);
 }
 
 // Note that this data is state and contains information about the vertices of the mesh, that only need to
 // be computed exactly one time, this data should get buffered into opengl one time.
-std::vector<IVPTRigged> RecIvptRiggedCollector::parse_model_into_ivptrs(const std::string &model_path,
-                                                                        bool swap_y_and_z) {
-    this->swap_y_and_z = swap_y_and_z;
+std::vector<IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_ivpntrs(const std::string &model_path) {
     recursion_level_counter = 0;
-    const aiScene *scene =
-        this->importer.ReadFile(model_path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    const aiScene *scene = this->importer.ReadFile(model_path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
     this->scene = scene;
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
@@ -806,21 +784,23 @@ std::vector<IVPTRigged> RecIvptRiggedCollector::parse_model_into_ivptrs(const st
     print_armature_to_animation_map(armature_node_name_to_animation_index);
 
     this->rec_process_nodes(scene->mRootNode, scene);
-    return this->ivptrs;
+    return this->ivpntrs;
 }
 
-IVPTRigged RecIvptRiggedCollector::process_mesh_ivptrs(aiMesh *mesh, const aiScene *scene) {
-    std::vector<glm::vec3> vertices = process_mesh_vertex_positions(mesh, this->swap_y_and_z);
+IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const aiScene *scene) {
+    /*std::vector<glm::vec3> vertices = process_mesh_vertex_positions(mesh, this->swap_y_and_z);*/
     std::vector<unsigned int> indices = process_mesh_indices(mesh);
+    std::vector<glm::vec3> vertices = process_mesh_vertex_positions(mesh);
+    std::vector<glm::vec3> normals = process_mesh_normals(mesh);
     std::vector<glm::vec2> texture_coordinates = process_mesh_texture_coordinates(mesh);
     std::vector<TextureInfo> texture_data = process_mesh_materials(mesh, scene, this->directory_to_asset_being_loaded);
     std::string main_texture = texture_data[0].path;
     std::vector<VertexBoneData> bone_data = this->process_mesh_vertices_bone_data(mesh);
 
-    return {indices, vertices, texture_coordinates, main_texture, bone_data};
+    return {indices, vertices, normals, texture_coordinates, main_texture, bone_data};
 };
 
-int RecIvptRiggedCollector::get_next_bone_id(const aiBone *pBone) {
+int RecIvpntRiggedCollector::get_next_bone_id(const aiBone *pBone) {
 
     std::string bone_name(pBone->mName.C_Str());
     int bone_id = 0;
@@ -835,10 +815,9 @@ int RecIvptRiggedCollector::get_next_bone_id(const aiBone *pBone) {
     return bone_id;
 }
 
-std::vector<VertexBoneData> RecIvptRiggedCollector::process_mesh_vertices_bone_data(aiMesh *mesh) {
-    // Initialize the vector with one VertexBoneData object per vertex
+std::vector<VertexBoneData> RecIvpntRiggedCollector::process_mesh_vertices_bone_data(aiMesh *mesh) {
+    // initialize the vector with one vertexbonedata object per vertex
     std::vector<VertexBoneData> bone_data_for_mesh(mesh->mNumVertices);
-
     std::cout << "working on bones of a mesh now it has: " << mesh->mNumBones << "bones" << std::endl;
     for (unsigned int i = 0; i < mesh->mNumBones; i++) {
         auto bone = mesh->mBones[i];
@@ -851,9 +830,13 @@ std::vector<VertexBoneData> RecIvptRiggedCollector::process_mesh_vertices_bone_d
         // therefore we should add to the bone_info thing
         if (bone_id == bone_unique_idx_to_info.size()) {
             BoneInfo bi(ai_matrix4x4_to_glm_mat4(bone->mOffsetMatrix));
+            print_matrix(ai_matrix4x4_to_glm_mat4(bone->mOffsetMatrix), "bone offset matrix");
             bone_unique_idx_to_info.push_back(bi);
         }
 
+        // for each bone it has a list of weights for each vertex that it affects.
+        // note that this is in th eopposite order as the opengl pipeline where we are given a vertex
+        // thus we require all this additionall infrastructure
         for (unsigned int j = 0; j < bone->mNumWeights; j++) { // Changed inner loop index to 'j'
             const aiVertexWeight &vw = bone->mWeights[j];
             uint index_of_vertex_influenced_by_this_bone = vw.mVertexId;
