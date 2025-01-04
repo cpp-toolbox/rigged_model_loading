@@ -12,12 +12,12 @@
 #include "sbpt_generated_includes.hpp"
 
 struct VertexBoneData {
-    uint indices_of_bones_that_affect_this_vertex[4] = {0};
+    unsigned int indices_of_bones_that_affect_this_vertex[4] = {0};
     float weight_value_of_this_vertex_wrt_bone[4] = {0.0f};
 
     VertexBoneData() {}
 
-    void add_bone_data(uint BoneID, float Weight);
+    void add_bone_data(unsigned int BoneID, float Weight);
 };
 
 class IVPNTRigged {
@@ -127,9 +127,9 @@ unsigned int find_animation_index_by_name(const aiScene *scene, const std::strin
 bool is_armature_node(const aiNode *node);
 std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(const aiScene *scene);
 
-uint find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
-uint find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
-uint find_idx_of_translation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
+unsigned int find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
+unsigned int find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
+unsigned int find_idx_of_translation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
 void calc_interpolated_scaling(aiVector3D &out, float animation_time_ticks, const aiNodeAnim *node_anim);
 void calc_interpolated_rotation(aiQuaternion &out, float animation_time_ticks, const aiNodeAnim *node_anim);
 void calc_interpolated_translation(aiVector3D &out, float animation_time_ticks, const aiNodeAnim *node_anim);

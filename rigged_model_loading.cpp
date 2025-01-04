@@ -490,8 +490,8 @@ void calc_interpolated_scaling(aiVector3D &out, float animation_time_ticks, cons
         return;
     }
 
-    uint scaling_idx = find_idx_of_scaling_key_for_given_time(animation_time_ticks, node_anim);
-    uint next_scaling_idx = scaling_idx + 1;
+    unsigned int scaling_idx = find_idx_of_scaling_key_for_given_time(animation_time_ticks, node_anim);
+    unsigned int next_scaling_idx = scaling_idx + 1;
 
     assert(next_scaling_idx < node_anim->mNumScalingKeys);
 
@@ -518,8 +518,8 @@ void calc_interpolated_rotation(aiQuaternion &out, float animation_time_ticks, c
         return;
     }
 
-    uint rotation_idx = find_idx_of_rotation_key_for_given_time(animation_time_ticks, node_anim);
-    uint next_rotation_idx = rotation_idx + 1;
+    unsigned int rotation_idx = find_idx_of_rotation_key_for_given_time(animation_time_ticks, node_anim);
+    unsigned int next_rotation_idx = rotation_idx + 1;
     assert(next_rotation_idx < node_anim->mNumRotationKeys);
 
     float t1 = (float)node_anim->mRotationKeys[rotation_idx].mTime;
@@ -544,8 +544,8 @@ void calc_interpolated_translation(aiVector3D &out, float animation_time_ticks, 
         return;
     }
 
-    uint translation_idx = find_idx_of_translation_key_for_given_time(animation_time_ticks, node_anim);
-    uint next_translation_idx = translation_idx + 1;
+    unsigned int translation_idx = find_idx_of_translation_key_for_given_time(animation_time_ticks, node_anim);
+    unsigned int next_translation_idx = translation_idx + 1;
     assert(next_translation_idx < node_anim->mNumPositionKeys);
 
     float t1 = (float)node_anim->mPositionKeys[translation_idx].mTime;
@@ -708,7 +708,7 @@ unsigned int find_animation_index_by_name(const aiScene *scene, const std::strin
 }
 
 const aiNodeAnim *find_node_anim(const aiAnimation *pAnimation, const std::string &NodeName) {
-    for (uint i = 0; i < pAnimation->mNumChannels; i++) {
+    for (unsigned int i = 0; i < pAnimation->mNumChannels; i++) {
         const aiNodeAnim *pNodeAnim = pAnimation->mChannels[i];
 
         if (std::string(pNodeAnim->mNodeName.data) == NodeName) {
@@ -718,10 +718,10 @@ const aiNodeAnim *find_node_anim(const aiAnimation *pAnimation, const std::strin
     return NULL;
 }
 
-uint find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim) {
+unsigned int find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim) {
     assert(node_anim->mNumScalingKeys > 0);
 
-    for (uint i = 0; i < node_anim->mNumScalingKeys - 1; i++) {
+    for (unsigned int i = 0; i < node_anim->mNumScalingKeys - 1; i++) {
         float t = (float)node_anim->mScalingKeys[i + 1].mTime;
         if (animation_time_ticks < t) {
             return i;
@@ -731,10 +731,10 @@ uint find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const ai
     return 0;
 }
 
-uint find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim) {
+unsigned int find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim) {
     assert(node_anim->mNumRotationKeys > 0);
 
-    for (uint i = 0; i < node_anim->mNumRotationKeys - 1; i++) {
+    for (unsigned int i = 0; i < node_anim->mNumRotationKeys - 1; i++) {
         float t = (float)node_anim->mRotationKeys[i + 1].mTime;
         if (animation_time_ticks < t) {
             return i;
@@ -744,10 +744,10 @@ uint find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const a
     return 0;
 }
 
-uint find_idx_of_translation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim) {
+unsigned int find_idx_of_translation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim) {
     assert(node_anim->mNumPositionKeys > 0);
 
-    for (uint i = 0; i < node_anim->mNumPositionKeys - 1; i++) {
+    for (unsigned int i = 0; i < node_anim->mNumPositionKeys - 1; i++) {
         float t = (float)node_anim->mPositionKeys[i + 1].mTime;
         if (animation_time_ticks < t) {
             return i;
@@ -839,7 +839,7 @@ std::vector<VertexBoneData> RecIvpntRiggedCollector::process_mesh_vertices_bone_
         // thus we require all this additionall infrastructure
         for (unsigned int j = 0; j < bone->mNumWeights; j++) { // Changed inner loop index to 'j'
             const aiVertexWeight &vw = bone->mWeights[j];
-            uint index_of_vertex_influenced_by_this_bone = vw.mVertexId;
+            unsigned int index_of_vertex_influenced_by_this_bone = vw.mVertexId;
 
             /*std::cout << ">>>> the above bone influcences a vertex with id: '"*/
             /*          << index_of_vertex_influenced_by_this_bone << "' with weight " << vw.mWeight << std::endl;*/
@@ -857,8 +857,8 @@ std::vector<VertexBoneData> RecIvpntRiggedCollector::process_mesh_vertices_bone_
     return bone_data_for_mesh;
 }
 
-void VertexBoneData::add_bone_data(uint BoneID, float Weight) {
-    for (uint i = 0; i < 4; i++) {
+void VertexBoneData::add_bone_data(unsigned int BoneID, float Weight) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (weight_value_of_this_vertex_wrt_bone[i] == 0.0) {
             indices_of_bones_that_affect_this_vertex[i] = BoneID;
             weight_value_of_this_vertex_wrt_bone[i] = Weight;
