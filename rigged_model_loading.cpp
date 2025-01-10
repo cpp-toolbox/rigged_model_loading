@@ -3,6 +3,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp> // For quaternion operations like eulerAngles
 #include <regex>
+#include <filesystem>
 /**
  * @brief Extracts the scale vector from a 4x4 transformation matrix.
  *
@@ -795,9 +796,13 @@ IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const ai
     std::vector<glm::vec2> texture_coordinates = process_mesh_texture_coordinates(mesh);
     std::vector<TextureInfo> texture_data = process_mesh_materials(mesh, scene, this->directory_to_asset_being_loaded);
     std::string main_texture = texture_data[0].path;
+    std::filesystem::path fs_path = main_texture;
+    // Convert to the preferred format for the operating system
+    std::string texture_native_path = fs_path.make_preferred().string();
+
     std::vector<VertexBoneData> bone_data = this->process_mesh_vertices_bone_data(mesh);
 
-    return {indices, vertices, normals, texture_coordinates, main_texture, bone_data};
+    return {indices, vertices, normals, texture_coordinates, texture_native_path, bone_data};
 };
 
 int RecIvpntRiggedCollector::get_next_bone_id(const aiBone *pBone) {
