@@ -43,6 +43,9 @@ When creating animations you usally use the child-of constraint to make an objec
 
 ![image](https://github.com/user-attachments/assets/29d8b148-b5bf-41d7-b3c7-9ff417de1330)
 
+* export your animation using the settings at the top of this article
+* **IMPORTANT**: Do not save your file after baking an action, be sure to undo that change before saving again or you might lose important animation work, this is because it's impossible to work with a baked action as you might go from having 8 kefyrames to 200 keyframes and you won't know what any one of them does.
+
 **Note**:  Make eusre that that you give all armatures some key frames that assimp believes they are animated.
 
 
