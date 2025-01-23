@@ -6,6 +6,12 @@ As of right now the rigged model loading only seems to support `.fbx` so make su
 
 This has to occur because there are various problems with armatures when they get exported to fbx having a scaledown of 100x and also being rotated usually.
 
+## general tips when working with armatures
+
+If you've never exported an animation in and run it in another software other than the one you use, then you might have some bad habits which make your export not work well, keep the following in mind:
+- you must apply all transformations for your exported animation to look right
+- when scaling an object with an armature as parent, only scale the armature, and not the underlying geometry, if you do woth at once then you'll probably have a double scaling occuring and the export will not be correct
+
 ## multiple armature support
 
 **Warning: when using multiple armatures you need to make sure that the bone names across all armatures are unique and that the armature names themselves are unique, and follow the naming convention in the next paragraph.**
