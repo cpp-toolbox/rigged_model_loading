@@ -19,6 +19,52 @@ glm::vec3 parse_scale_matrix(const glm::mat4 &transformation_matrix) {
 }
 
 /**
+ * @brief Prints the details of an aiAnimation instance.
+ *
+ * @param animation The aiAnimation instance to print.
+ */
+void print_ai_animation_info(const aiAnimation *animation) {
+    if (!animation) {
+        std::cout << "Invalid animation pointer.\n";
+        return;
+    }
+
+    // Print basic information
+    std::cout << "Animation Name: " << animation->mName.C_Str() << "\n";
+    std::cout << "Duration: " << animation->mDuration << " ticks\n";
+    std::cout << "Ticks per second: "
+              << (animation->mTicksPerSecond == 0 ? "Not specified" : std::to_string(animation->mTicksPerSecond))
+              << "\n";
+
+    // Print node animation channels
+    std::cout << "Number of Node Animation Channels: " << animation->mNumChannels << "\n";
+    for (unsigned int i = 0; i < animation->mNumChannels; ++i) {
+        const aiNodeAnim *channel = animation->mChannels[i];
+        if (channel) {
+            std::cout << "  Channel " << i + 1 << " Node Name: " << channel->mNodeName.C_Str() << "\n";
+        }
+    }
+
+    // Print mesh animation channels
+    std::cout << "Number of Mesh Animation Channels: " << animation->mNumMeshChannels << "\n";
+    for (unsigned int i = 0; i < animation->mNumMeshChannels; ++i) {
+        const aiMeshAnim *meshChannel = animation->mMeshChannels[i];
+        if (meshChannel) {
+            std::cout << "  Mesh Channel " << i + 1 << " Mesh Name: " << meshChannel->mName.C_Str() << "\n";
+        }
+    }
+
+    // Print morph mesh animation channels
+    std::cout << "Number of Morph Mesh Animation Channels: " << animation->mNumMorphMeshChannels << "\n";
+    for (unsigned int i = 0; i < animation->mNumMorphMeshChannels; ++i) {
+        const aiMeshMorphAnim *morphChannel = animation->mMorphMeshChannels[i];
+        if (morphChannel) {
+            std::cout << "  Morph Channel " << i + 1 << " Mesh Name: " << morphChannel->mName.C_Str() << "\n";
+        }
+    }
+}
+
+/**
  * @brief Extracts the translation vector from a 4x4 transformation matrix.
  *
  * @param transformation_matrix The 4x4 transformation matrix.
@@ -460,6 +506,7 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
 void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set) {
     transforms_to_be_set.resize(bone_unique_idx_to_info.size());
 
+    /*print_ai_animation(scene->mAnimations[0]);*/
     // uses 25 fps if ticks per second was not specified
     float ticks_per_second =
         (float)(scene->mAnimations[0]->mTicksPerSecond != 0 ? scene->mAnimations[0]->mTicksPerSecond : 25.0f);
@@ -614,7 +661,6 @@ std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(co
     std::unordered_map<std::string, unsigned int> armature_to_animation_map;
     std::regex animation_name_regex(R"((.+)_armature\|(.+)_anim)");
 
-    // Iterate over all animations
     for (unsigned int animation_index = 0; animation_index < scene->mNumAnimations; ++animation_index) {
         aiAnimation *animation = scene->mAnimations[animation_index];
         std::string animation_name = animation->mName.C_Str();
@@ -631,12 +677,12 @@ std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(co
             std::cout << "  Parsed action name: " << action_name << std::endl;
 
             // Strip "_armature" from the armature name to compare with action_name
-            std::string armature_base_name = armature_name.substr(0, armature_name.find("_armature"));
+            std::string armature_base_name = match[1].str(); // Use the raw match group directly
 
             std::cout << "  Stripped armature name: " << armature_base_name << std::endl;
 
-            // Ensure armature_base_name matches action_name
-            if (armature_base_name == action_name) {
+            // Ensure action_name starts with armature_base_name
+            if (action_name.find(armature_base_name) == 0) { // Check if action_name starts with armature_base_name
                 std::cout << "  Armature and action names match." << std::endl;
 
                 // Check for duplicate armature names
