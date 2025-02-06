@@ -836,11 +836,12 @@ std::vector<IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_ivpntrs(const
 
 IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const aiScene *scene) {
     /*std::vector<glm::vec3> vertices = process_mesh_vertex_positions(mesh, this->swap_y_and_z);*/
-    std::vector<unsigned int> indices = process_mesh_indices(mesh);
-    std::vector<glm::vec3> vertices = process_mesh_vertex_positions(mesh);
-    std::vector<glm::vec3> normals = process_mesh_normals(mesh);
-    std::vector<glm::vec2> texture_coordinates = process_mesh_texture_coordinates(mesh);
-    std::vector<TextureInfo> texture_data = process_mesh_materials(mesh, scene, this->directory_to_asset_being_loaded);
+    std::vector<unsigned int> indices = model_loading::process_mesh_indices(mesh);
+    std::vector<glm::vec3> vertices = model_loading::process_mesh_vertex_positions(mesh);
+    std::vector<glm::vec3> normals = model_loading::process_mesh_normals(mesh);
+    std::vector<glm::vec2> texture_coordinates = model_loading::process_mesh_texture_coordinates(mesh);
+    std::vector<model_loading::TextureInfo> texture_data =
+        model_loading::process_mesh_materials(mesh, scene, this->directory_to_asset_being_loaded);
     std::string main_texture = texture_data[0].path;
     std::filesystem::path fs_path = main_texture;
     // Convert to the preferred format for the operating system
