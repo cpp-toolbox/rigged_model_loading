@@ -11,6 +11,8 @@
 
 #include "sbpt_generated_includes.hpp"
 
+namespace rigged_model_loading {
+
 struct VertexBoneData {
     unsigned int indices_of_bones_that_affect_this_vertex[4] = {0};
     float weight_value_of_this_vertex_wrt_bone[4] = {0.0f};
@@ -133,5 +135,7 @@ unsigned int find_idx_of_translation_key_for_given_time(float animation_time_tic
 void calc_interpolated_scaling(aiVector3D &out, float animation_time_ticks, const aiNodeAnim *node_anim);
 void calc_interpolated_rotation(aiQuaternion &out, float animation_time_ticks, const aiNodeAnim *node_anim);
 void calc_interpolated_translation(aiVector3D &out, float animation_time_ticks, const aiNodeAnim *node_anim);
+
+} // namespace rigged_model_loading
 
 #endif // RIGGED_MODEL_LOADING_HPP

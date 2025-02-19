@@ -4,6 +4,9 @@
 #include <glm/gtx/quaternion.hpp> // For quaternion operations like eulerAngles
 #include <regex>
 #include <filesystem>
+
+namespace rigged_model_loading {
+
 /**
  * @brief Extracts the scale vector from a 4x4 transformation matrix.
  *
@@ -928,3 +931,4 @@ void VertexBoneData::add_bone_data(unsigned int BoneID, float Weight) {
      * num*/
     /*// bones count*/
 }
+} // namespace rigged_model_loading
