@@ -48,7 +48,7 @@ class IVPNTPRigged {
           packed_texture_coordinates(packed_texture_coordinates), packed_texture_index(packed_texture_index),
           texture(texture), bone_data(bone_data) {};
     Transform transform;
-    int id = UniqueIDGenerator::generate();
+    int id = GlobalUIDGenerator::get_id();
     std::vector<unsigned int> indices;
     std::vector<glm::vec3> xyz_positions;
     std::vector<glm::vec3> normals;
