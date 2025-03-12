@@ -22,6 +22,7 @@ struct VertexBoneData {
     void add_bone_data(unsigned int BoneID, float Weight);
 };
 
+// TODO: move these to draw data?
 class IVPNTRigged {
   public:
     IVPNTRigged(std::vector<unsigned int> indices, std::vector<glm::vec3> xyz_positions, std::vector<glm::vec3> normals,
@@ -83,6 +84,7 @@ struct BoneInfo {
     BoneInfo(const glm::mat4 &lstbst) { local_space_to_bone_space_in_bind_pose_transformation = lstbst; }
 };
 
+// NOTE: this is the class you want to use in main
 // note that you must make sure all your bone names are unique right now until further improvments
 class RecIvpntRiggedCollector {
   public:
