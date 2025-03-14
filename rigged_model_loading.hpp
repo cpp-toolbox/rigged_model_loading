@@ -72,12 +72,12 @@ struct BoneInfo {
     // Note that bones don't really exist, they only exist by the mapping of vertex to bone id's and then knowing the
     // mapping for each bone,
 
-    // what is a bone tip? it just shows what the rotation and scale is visually, based on a (0, 0, 1)
-    // bone tip you can compute where the tip would be based on the scale and so on I think... but then again bones can
-    // be larger and have no scaled in them right so then what? it might just be to compute during the auto weighting
-    // process maybe check assimp if that data is stored in there if a bone is positioned at position (x, y, z) and then
-    // we have a vertex at (x, y + 1, z + 1) then its new position becomes (0, 1, 1) that is it is positioned relative
-    // to the bones origin
+    // Questions for myself: what is a bone tip? it just shows what the rotation and scale is visually, based on a (0,
+    // 0, 1) bone tip you can compute where the tip would be based on the scale and so on I think... but then again
+    // bones can be larger and have no scaled in them right so then what? it might just be to compute during the auto
+    // weighting process maybe check assimp if that data is stored in there if a bone is positioned at position (x, y,
+    // z) and then we have a vertex at (x, y + 1, z + 1) then its new position becomes (0, 1, 1) that is it is
+    // positioned relative to the bones origin
     glm::mat4 local_space_to_bone_space_in_bind_pose_transformation;
     glm::mat4 local_space_animated_transform_upto_this_bone = glm::mat4(0);
 
@@ -89,7 +89,7 @@ struct BoneInfo {
 class RecIvpntRiggedCollector {
   public:
     // we make this here so that we always have access to the importer throughout the lifetime of this object
-    // without this there will be segfaults with assimp
+    // without this there will be segfaults with assimp, needs to stay alive
     Assimp::Importer importer;
     const aiScene *scene; // for ease
     std::string directory_to_asset_being_loaded;
@@ -104,22 +104,32 @@ class RecIvpntRiggedCollector {
     // the origin to the root node.
     glm::mat4 inverse_root_node_transform;
     int get_next_bone_id(const aiBone *pBone);
+    // NOTE: this is populated during the initial parse_model function
+    // bone names are parsed from the file directly
+    // TODO: use a id generator in the future ?
     std::unordered_map<std::string, int> bone_name_to_unique_index; // one for each bone.
     std::vector<BoneInfo> bone_unique_idx_to_info;
+
+    // NOTE: ENTRY POINT FUNCTION
     std::vector<IVPNTRigged> parse_model_into_ivpntrs(const std::string &model_path);
     std::vector<VertexBoneData> process_mesh_vertices_bone_data(aiMesh *mesh);
     IVPNTRigged process_mesh_ivpntrs(aiMesh *mesh, const aiScene *scene);
 
-    /*std::string curr_armature_name_rec = "";*/
     unsigned int curr_animation_index_rec = 0;
-    std::unordered_map<std::string, unsigned int> armature_node_name_to_animation_index;
+    // the armature node name is whatever the node for the armature is called in blender
+    // NOTE: this is populated during the initial parse model function, it is used during rec_update_animation_matrices
+    //     - we recursively iterate over the hierarchical structure of the assimp import
+    //     - if the node is an armature, then we parse
+    std::unordered_map<std::string, std::unordered_map<std::string, int>>
+        armature_node_name_to_animation_name_to_assimp_animation_index;
 
     // this is used for for eventually binding into uniforms with all the matrices, then in the shader
     // we also have a vertex attribute for each vertex which specifies the id of which matrices to use...
-    void set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set);
-    void update_animation_matrices(float animation_time_ticks);
+    void set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set,
+                             std::string requested_animation);
+    void update_animation_matrices(float animation_time_ticks, std::string requested_animation);
     void rec_update_animation_matrices(float animation_time_ticks, glm::mat4 parent_transform, aiNode *node,
-                                       const aiScene *scene, int rec_depth);
+                                       const aiScene *scene, int rec_depth, std::string requested_animation);
 };
 
 const aiNodeAnim *find_node_anim(const aiAnimation *pAnimation, const std::string &NodeName);
@@ -129,7 +139,8 @@ void print_ai_animation(const aiAnimation *anim);
 unsigned int find_animation_index_by_name(const aiScene *scene, const std::string &animationName);
 
 bool is_armature_node(const aiNode *node);
-std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(const aiScene *scene);
+std::unordered_map<std::string, std::unordered_map<std::string, int>>
+build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScene *scene);
 
 unsigned int find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
 unsigned int find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);

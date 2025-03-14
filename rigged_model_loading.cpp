@@ -268,23 +268,6 @@ void print_ai_animation(const aiAnimation *anim) {
     std::cout << "+-----------------------------------------------+" << std::endl;
 }
 
-/**
- * @brief Prints the mapping of armature names to animation indices.
- *
- * @param map A map of armature names to their corresponding animation indices.
- */
-void print_armature_to_animation_map(const std::unordered_map<std::string, unsigned int> &map) {
-    std::cout << "Armature to Animation Mapping:" << std::endl;
-
-    for (const auto &pair : map) {
-        const std::string &armature_name = pair.first;
-        unsigned int animation_index = pair.second;
-
-        std::cout << "Armature: " << armature_name << std::endl;
-        std::cout << "  Animation Index: " << animation_index << std::endl;
-    }
-}
-
 // should only ever get called once
 void RecIvpntRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scene) {
     // Helper to generate indentation based on the recursion level
@@ -352,7 +335,8 @@ void RecIvpntRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *sce
 
 void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time_ticks,
                                                             glm::mat4 parent_animation_transform_in_local_space,
-                                                            aiNode *node, const aiScene *scene, int rec_depth) {
+                                                            aiNode *node, const aiScene *scene, int rec_depth,
+                                                            std::string requested_animation) {
     // Helper to generate indentation based on the recursion level
     auto get_indentation = [this, &rec_depth]() {
         return std::string(rec_depth * 2, ' '); // 2 spaces per level
@@ -376,11 +360,13 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
         std::cout << get_indentation() << "on node: " << node_name << std::endl;
     }
 
-    // the following works because an armature node is the root of all the bones.
+    // NOTE: huge assumption:
+    // the following works because an armature node is the root of all the bones, when we set
+    // curre_animation_index_rec it stays as its value until we are done with that armature so nothing bad occurs
     bool node_is_armature = is_armature_node(node);
     if (node_is_armature) {
-        /*curr_armature_name_rec = node_name;*/
-        curr_animation_index_rec = armature_node_name_to_animation_index.at(node_name);
+        curr_animation_index_rec =
+            armature_node_name_to_animation_name_to_assimp_animation_index.at(node_name).at(requested_animation);
         if (logging) {
             // Indented print output
             std::cout << "this node is an armature using the following animation index:" << curr_animation_index_rec
@@ -388,7 +374,6 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
         }
     }
 
-    // TODO in the future load different animations
     const aiAnimation *animation = scene->mAnimations[curr_animation_index_rec];
     const aiNodeAnim *node_anim = find_node_anim(animation, node_name);
 
@@ -407,21 +392,18 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
         glm::mat4 scale_transform = glm::scale(glm::mat4(1.0f), glm_scaling);
         /*scale_transform = glm::mat4(1.0);*/
 
-        // Indented print matrix output
         /*print_matrix(scale_transform, "scale matrix", rec_depth);*/
         /*print_vector(parse_scale_matrix(scale_transform), "scale_matrix", rec_depth);*/
 
         aiQuaternion rotation;
         calc_interpolated_rotation(rotation, animation_time_ticks, node_anim);
         glm::mat4 rotation_transform = ai_matrix3x3_to_glm_mat4(rotation.GetMatrix());
-        // Indented print matrix output
         /*print_vector(matrix_to_euler_angles(rotation_transform), "rotation in euler angles", rec_depth);*/
 
         aiVector3D translation;
         calc_interpolated_translation(translation, animation_time_ticks, node_anim);
         glm::vec3 glm_translation(translation.x, translation.y, translation.z);
         glm::mat4 translation_transform = glm::translate(glm::mat4(1.0f), glm_translation);
-        // Indented print matrix output
         /*print_vector(parse_translation_matrix(translation_transform), "translation", rec_depth);*/
 
         // we overwrite here based on assimp's documentation, when there is animation we don't use
@@ -499,14 +481,16 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
 
     /*spdlog::get(Systems::asset_loading)->info("finished processing meshes");*/
     for (unsigned int i = 0; i < node->mNumChildren; i++) {
-        rec_update_animation_matrices(animation_time_ticks, curr_mat, node->mChildren[i], scene, rec_depth + 1);
+        rec_update_animation_matrices(animation_time_ticks, curr_mat, node->mChildren[i], scene, rec_depth + 1,
+                                      requested_animation);
     }
 }
 
 /*
- * @pre the asset of interest has been loaded already.
+ * @pre the asset of interest has been loaded already via parse model
  */
-void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set) {
+void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set,
+                                                  std::string requested_animation) {
     transforms_to_be_set.resize(bone_unique_idx_to_info.size());
 
     /*print_ai_animation(scene->mAnimations[0]);*/
@@ -514,14 +498,21 @@ void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::ve
     float ticks_per_second =
         (float)(scene->mAnimations[0]->mTicksPerSecond != 0 ? scene->mAnimations[0]->mTicksPerSecond : 25.0f);
     float time_in_ticks = ticks_per_second * time_in_seconds;
-    float animation_time_ticks = fmod(time_in_ticks, (float)scene->mAnimations[0]->mDuration);
+    float max_duration = 0.0f;
+    for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
+        if (scene->mAnimations[i]->mDuration > max_duration) {
+            max_duration = scene->mAnimations[i]->mDuration;
+        }
+    }
+
+    float animation_time_ticks = fmod(time_in_ticks, max_duration);
 
     bool logging = false;
 
     if (logging) {
         std::cout << "=== STARTING UPDATE ANIMATION MATRICES ===" << std::endl;
     }
-    update_animation_matrices(animation_time_ticks);
+    update_animation_matrices(animation_time_ticks, requested_animation);
     if (logging) {
         std::cout << "=== ENDING UPDATE ANIMATION MATRICES ===" << std::endl;
     }
@@ -626,7 +617,8 @@ std::string get_full_node_path(const aiNode *node) {
  *
  * This function processes animations from the provided `aiScene` and builds a mapping between armature names
  * and their corresponding animation indices. It ensures that only animations with correctly formatted names
- * are included in the mapping. The naming convention for armatures and animations is as follows:
+ * are included in the mapping. This function operatates on the assumption the naming convention for armatures and
+ * animations is as follows, (which is the defeault when blender exports fbx)
  *
  * - Armatures must be named in the format: `X_..._armature`
  *   - `X` represents a unique identifier or descriptive name for the armature (e.g., `bottom_cylinder`, `robot`).
@@ -637,23 +629,20 @@ std::string get_full_node_path(const aiNode *node) {
  * `robot_idle`).
  *   - The `_anim` suffix is mandatory to identify the object as an animation action.
  *
- * - The mapping includes only those armature-animation pairs where the prefixes match:
+ * - Additionally we are running under this assumption:
+ *     - I've found that for each action (anim) you have when exported, there will be NUM_ARMATURES * NUM_ANIMATIONS
+ *     different animations, each with the form armature_name|action_name, thus only a subset of these actions will be
+ *     of interest to you, this function accounts for this and only stores matching pairs
+ *
+ * - Again the mapping will include only those armature-animation pairs where the prefixes match:
  *   - Example: `bottom_cylinder_armature` and `bottom_cylinder_anim`
- *   - If the armature prefix does not match the animation prefix, it will not be included in the mapping.
- *
- * @param scene Pointer to the `aiScene` object containing the animations.
- * @return A mapping (`std::unordered_map<std::string, std::vector<unsigned int>>`)
- *         where the keys are armature names, and the values are vectors of animation indices.
- *         Returns an empty map if the scene is null or if no matching pairs are found.
+ *   - When an armature has multiple actions (anims) then we will also match them up, for example
+ *   `bottom_cylinder_armature` and `flying_bottom_cylinder_armature` will be matched
+ *   - If the armature prefix does not match the animation prefix, it will not be included in the mapping as wanted
  */
-/**
- * @brief Builds a map between unique armature names and their corresponding animation indices.
- *
- * @param scene Pointer to the aiScene containing animations.
- * @return std::unordered_map<std::string, unsigned int> A map from armature names to animation indices.
- * @throws std::runtime_error If duplicate armature names are detected.
- */
-std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(const aiScene *scene) {
+
+std::unordered_map<std::string, std::unordered_map<std::string, int>>
+build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScene *scene) {
     if (!scene) {
         std::cerr << "Invalid scene pointer provided!" << std::endl;
         return {};
@@ -661,45 +650,42 @@ std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(co
 
     std::cout << "Building armature to animation map..." << std::endl;
 
-    std::unordered_map<std::string, unsigned int> armature_to_animation_map;
+    std::unordered_map<std::string, std::unordered_map<std::string, int>> armature_to_animation_map;
+
+    // NOTE: the animation name always seems to be of the form `armature_name|action_name` (action name is really
+    // the animation name)
     std::regex animation_name_regex(R"((.+)_armature\|(.+)_anim)");
 
     for (unsigned int animation_index = 0; animation_index < scene->mNumAnimations; ++animation_index) {
         aiAnimation *animation = scene->mAnimations[animation_index];
-        std::string animation_name = animation->mName.C_Str();
+
+        std::string animation_name = animation->mName.C_Str(); // this must satisfy the assumption in the docstring
         std::smatch match;
 
         std::cout << "Processing animation " << animation_index << ": " << animation_name << std::endl;
 
         // Check if the animation name matches the expected pattern
         if (std::regex_match(animation_name, match, animation_name_regex) && match.size() == 3) {
-            std::string armature_name = match[1].str() + "_armature";
+            std::string armature_base_name = match[1].str();
+            std::string armature_name = armature_base_name + "_armature";
             std::string action_name = match[2].str();
 
             std::cout << "  Parsed armature name: " << armature_name << std::endl;
             std::cout << "  Parsed action name: " << action_name << std::endl;
-
-            // Strip "_armature" from the armature name to compare with action_name
-            std::string armature_base_name = match[1].str(); // Use the raw match group directly
-
             std::cout << "  Stripped armature name: " << armature_base_name << std::endl;
 
-            // Ensure action_name starts with armature_base_name
-            if (action_name.find(armature_base_name) == 0) { // Check if action_name starts with armature_base_name
-                std::cout << "  Armature and action names match." << std::endl;
-
-                // Check for duplicate armature names
-                if (armature_to_animation_map.find(armature_name) != armature_to_animation_map.end()) {
-                    std::cerr << "Error: Duplicate armature name detected: " << armature_name << std::endl;
-                    throw std::runtime_error("Duplicate armature name detected: " + armature_name);
-                }
-
-                // Map the unique armature name to the animation index
-                armature_to_animation_map[armature_name] = animation_index;
-                std::cout << "  Added to map: " << armature_name << " -> " << animation_index << std::endl;
-            } else {
-                std::cout << "  Skipped: Armature and action names do not match." << std::endl;
+            // If action_name exactly matches armature_base_name, set it to an empty string
+            if (action_name == armature_base_name) {
+                action_name = "";
+            } else if (action_name.ends_with("_" + armature_base_name)) {
+                action_name = action_name.substr(0, action_name.size() - armature_base_name.size() - 1);
             }
+
+            std::cout << "  Final action name: " << action_name << std::endl;
+
+            armature_to_animation_map[armature_name][action_name] = animation_index;
+            std::cout << "  Added to map: " << armature_name << " -> " << action_name << " -> " << animation_index
+                      << std::endl;
         } else {
             std::cout << "  Skipped: Name does not match pattern." << std::endl;
         }
@@ -709,6 +695,23 @@ std::unordered_map<std::string, unsigned int> build_armature_to_animation_map(co
               << std::endl;
 
     return armature_to_animation_map;
+}
+
+// prints the above thing
+void print_antantaaim(const std::unordered_map<std::string, std::unordered_map<std::string, int>> &map) {
+    std::cout << "Armature to Animation Mapping:" << std::endl;
+
+    for (const auto &pair : map) {
+        const std::string &armature_name = pair.first;
+        const std::unordered_map<std::string, int> inner_map = pair.second;
+
+        std::cout << "Armature: " << armature_name << std::endl;
+        for (const auto &pair : inner_map) {
+            auto animation_name = pair.first;
+            auto animation_index = pair.second;
+            std::cout << "Animation Name: " << animation_name << "  Animation Index: " << animation_index << std::endl;
+        }
+    }
 }
 
 /**
@@ -807,8 +810,9 @@ unsigned int find_idx_of_translation_key_for_given_time(float animation_time_tic
     return 0;
 }
 
-void RecIvpntRiggedCollector::update_animation_matrices(float animation_time_ticks) {
-    rec_update_animation_matrices(animation_time_ticks, glm::mat4(1.0f), this->scene->mRootNode, this->scene, 0);
+void RecIvpntRiggedCollector::update_animation_matrices(float animation_time_ticks, std::string requested_animation) {
+    rec_update_animation_matrices(animation_time_ticks, glm::mat4(1.0f), this->scene->mRootNode, this->scene, 0,
+                                  requested_animation);
 }
 
 // Note that this data is state and contains information about the vertices of the mesh, that only need to
@@ -830,8 +834,9 @@ std::vector<IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_ivpntrs(const
     print_matrix(inverse_root_node_transform, "inverse_root_node_transform");
 
     print_all_animations(scene);
-    armature_node_name_to_animation_index = build_armature_to_animation_map(scene);
-    print_armature_to_animation_map(armature_node_name_to_animation_index);
+    armature_node_name_to_animation_name_to_assimp_animation_index =
+        build_armature_name_to_animation_name_to_assimp_animation_index_map(scene);
+    print_antantaaim(armature_node_name_to_animation_name_to_assimp_animation_index);
 
     this->rec_process_nodes(scene->mRootNode, scene);
     return this->ivpntrs;
@@ -846,13 +851,10 @@ IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const ai
     std::vector<model_loading::TextureInfo> texture_data =
         model_loading::process_mesh_materials(mesh, scene, this->directory_to_asset_being_loaded);
     std::string main_texture = texture_data[0].path;
-    std::filesystem::path fs_path = main_texture;
-    // Convert to the preferred format for the operating system
-    std::string texture_native_path = fs_path.make_preferred().string();
 
     std::vector<VertexBoneData> bone_data = this->process_mesh_vertices_bone_data(mesh);
 
-    return {indices, vertices, normals, texture_coordinates, texture_native_path, bone_data};
+    return {indices, vertices, normals, texture_coordinates, normalize_path_for_os(main_texture), bone_data};
 };
 
 int RecIvpntRiggedCollector::get_next_bone_id(const aiBone *pBone) {
