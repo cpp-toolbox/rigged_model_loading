@@ -18,7 +18,7 @@ If you've never exported an animation in and run it in another software other th
 
 *Note: In the future we will try and remove these requirements to simplify things.*
 
-You must name your armatures using the following format `X_..._armature` eg) `character_armature` and so on, also animations must follow a similar convention, so for example you have to name your action `character_anim`, this must be done because when exporting an animation with mutiple armatures with the animation it generates a bunch of empty animations for the armatures that were not used during that animation, and we needed a way to extract which animation is for what armature, this also works because when blender exports to fbx the actions get named like this: `character_armature|character_anim`, so that when we see an animation of this form`character_armature|gun_anim` then we don't have to care about it.
+You must name your armatures using the following format `X_..._armature` eg) `character_armature` and so on, also animations must follow a similar convention, so for example you have to name your action `Y_character_anim` eg) `run_character_anim` this must be done because when exporting an animation with mutiple armatures with the animation it generates a bunch of empty animations for the armatures that were not used during that animation, and we needed a way to extract which animation is for what armature, this also works because when blender exports to fbx the actions get named like this: `character_armature|run_character_anim`, so that when we see an animation of this form`character_armature|fire_gun_anim` then we don't have to care about it.
 
 ## Baking Animations
 
