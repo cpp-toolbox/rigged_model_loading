@@ -26,6 +26,8 @@ You must name your armatures using the following format `X_..._armature` eg) `ch
 
 When making animations in blender you have access to tools that will make animating easier, usually these tools are not portable and are specific to blender, thus when you export your animation, those tools will not be able to be used, thus you must "bake" in the tools effect into the file on export or else other programs which try to open the file will not see these effects. A simple example of this would be if you only work in `.blend` files and are using a mirror modifier and you export to `.fbx` or `.obj` clearly that reflect data will not be there and you'd only get half the model, this is why baking in general is important.
 
+Additionally another reason to bake is that whenever you have multiple armatures which a possibly different number of keyframes and starting points, then when you bake the animation it forces them all to use the same number of keyframes and start at the same time which is a good thing to do to make importing as simple as possible.
+
 ### So what data is exported?
 
 From what I understand when you export an animation you get keyframes which only contain rotation, translation and scale of bones
