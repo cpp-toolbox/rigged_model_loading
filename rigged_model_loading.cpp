@@ -490,15 +490,24 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
 /*
  * @pre the asset of interest has been loaded already via parse model
  */
-void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set,
-                                                  std::string requested_animation, bool loop) {
+void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
+                                                  std::string requested_animation, bool loop, bool restart) {
+
+    if (current_animation_name != requested_animation or restart) {
+        // restart the current animation if you request a new one
+        current_animation_time = 0;
+    }
+
+    current_animation_name = requested_animation;
+    current_animation_time += delta_time;
+
     transforms_to_be_set.resize(bone_unique_idx_to_info.size());
 
     /*print_ai_animation(scene->mAnimations[0]);*/
     // uses 25 fps if ticks per second was not specified
     float ticks_per_second =
         (float)(scene->mAnimations[0]->mTicksPerSecond != 0 ? scene->mAnimations[0]->mTicksPerSecond : 25.0f);
-    float time_in_ticks = ticks_per_second * time_in_seconds;
+    float time_in_ticks = ticks_per_second * current_animation_time;
     float max_duration = 0.0f;
     for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
         if (scene->mAnimations[i]->mDuration > max_duration) {
