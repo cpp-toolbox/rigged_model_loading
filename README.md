@@ -10,6 +10,7 @@ This has to occur because there are various problems with armatures when they ge
 
 If you've never exported an animation in and run it in another software other than the one you use, then you might have some bad habits which make your export not work well, keep the following in mind:
 - you must apply all transformations for your exported animation to look right
+- make sure there are at least 2 keyframes or else the animation will not start (for interpolation purposes)
 - when scaling an object with an armature as parent, only scale the armature, and not the underlying geometry, if you do woth at once then you'll probably have a double scaling occuring and the export will not be correct
 
 ## multiple armature support
