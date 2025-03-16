@@ -835,7 +835,7 @@ std::vector<IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_ivpntrs(const
         std::cerr << "Error: Assimp - " << importer.GetErrorString() << std::endl;
     }
 
-    this->directory_to_asset_being_loaded = model_path.substr(0, model_path.find_last_of("/") + 1);
+    this->directory_to_asset_being_loaded = get_containing_directory(model_path) + get_path_delimiter();
 
     glm::mat4 root_node_transform = ai_matrix4x4_to_glm_mat4(scene->mRootNode->mTransformation);
     print_matrix(root_node_transform, "root_node_transform");
@@ -857,6 +857,7 @@ IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const ai
     std::vector<glm::vec3> vertices = model_loading::process_mesh_vertex_positions(mesh);
     std::vector<glm::vec3> normals = model_loading::process_mesh_normals(mesh);
     std::vector<glm::vec2> texture_coordinates = model_loading::process_mesh_texture_coordinates(mesh);
+    std::cout << "directory being loaded: " << this->directory_to_asset_being_loaded;
     std::vector<model_loading::TextureInfo> texture_data =
         model_loading::process_mesh_materials(mesh, scene, this->directory_to_asset_being_loaded);
     std::string main_texture = texture_data[0].path;
