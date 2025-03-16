@@ -378,7 +378,7 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
     const aiNodeAnim *node_anim = find_node_anim(animation, node_name);
 
     bool node_is_animated = node_anim != NULL;
-    bool user_requested_no_anim = animation_time_ticks == -1;
+    bool user_requested_no_anim = animation_time_ticks == no_anim_sentinel;
 
     if (not user_requested_no_anim and node_is_animated) {
 
@@ -481,6 +481,7 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
 
     /*spdlog::get(Systems::asset_loading)->info("finished processing meshes");*/
     for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        // NOTE: recursion happening here
         rec_update_animation_matrices(animation_time_ticks, curr_mat, node->mChildren[i], scene, rec_depth + 1,
                                       requested_animation);
     }
@@ -490,7 +491,7 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
  * @pre the asset of interest has been loaded already via parse model
  */
 void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::vector<glm::mat4> &transforms_to_be_set,
-                                                  std::string requested_animation) {
+                                                  std::string requested_animation, bool loop) {
     transforms_to_be_set.resize(bone_unique_idx_to_info.size());
 
     /*print_ai_animation(scene->mAnimations[0]);*/
@@ -504,8 +505,16 @@ void RecIvpntRiggedCollector::set_bone_transforms(float time_in_seconds, std::ve
             max_duration = scene->mAnimations[i]->mDuration;
         }
     }
-
-    float animation_time_ticks = fmod(time_in_ticks, max_duration);
+    float animation_time_ticks;
+    if (loop) {
+        animation_time_ticks = fmod(time_in_ticks, max_duration);
+    } else {
+        if (time_in_ticks >= max_duration) {
+            animation_time_ticks = no_anim_sentinel;
+        } else {
+            animation_time_ticks = time_in_ticks;
+        }
+    }
 
     bool logging = false;
 
