@@ -835,7 +835,7 @@ void RecIvpntRiggedCollector::update_animation_matrices(float animation_time_tic
 
 // Note that this data is state and contains information about the vertices of the mesh, that only need to
 // be computed exactly one time, this data should get buffered into opengl one time.
-std::vector<IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_ivpntrs(const std::string &model_path) {
+std::vector<draw_info::IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_ivpntrs(const std::string &model_path) {
     recursion_level_counter = 0;
     const aiScene *scene = this->importer.ReadFile(model_path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
     this->scene = scene;
@@ -860,7 +860,7 @@ std::vector<IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_ivpntrs(const
     return this->ivpntrs;
 }
 
-IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const aiScene *scene) {
+draw_info::IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const aiScene *scene) {
     /*std::vector<glm::vec3> vertices = process_mesh_vertex_positions(mesh, this->swap_y_and_z);*/
     std::vector<unsigned int> indices = model_loading::process_mesh_indices(mesh);
     std::vector<glm::vec3> vertices = model_loading::process_mesh_vertex_positions(mesh);
@@ -871,9 +871,15 @@ IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mesh, const ai
         model_loading::process_mesh_materials(mesh, scene, this->directory_to_asset_being_loaded);
     std::string main_texture = texture_data[0].path;
 
-    std::vector<VertexBoneData> bone_data = this->process_mesh_vertices_bone_data(mesh);
+    std::vector<draw_info::VertexBoneData> bone_data = this->process_mesh_vertices_bone_data(mesh);
 
-    return {indices, vertices, normals, texture_coordinates, normalize_path_for_os(main_texture), bone_data};
+    return {indices,
+            vertices,
+            normals,
+            texture_coordinates,
+            normalize_path_for_os(main_texture),
+            bone_data,
+            ivpntr_id_generator.get_id()};
 };
 
 int RecIvpntRiggedCollector::get_next_bone_id(const aiBone *pBone) {
@@ -891,9 +897,9 @@ int RecIvpntRiggedCollector::get_next_bone_id(const aiBone *pBone) {
     return bone_id;
 }
 
-std::vector<VertexBoneData> RecIvpntRiggedCollector::process_mesh_vertices_bone_data(aiMesh *mesh) {
+std::vector<draw_info::VertexBoneData> RecIvpntRiggedCollector::process_mesh_vertices_bone_data(aiMesh *mesh) {
     // initialize the vector with one vertexbonedata object per vertex
-    std::vector<VertexBoneData> bone_data_for_mesh(mesh->mNumVertices);
+    std::vector<draw_info::VertexBoneData> bone_data_for_mesh(mesh->mNumVertices);
     std::cout << "working on bones of a mesh now it has: " << mesh->mNumBones << "bones" << std::endl;
     for (unsigned int i = 0; i < mesh->mNumBones; i++) {
         auto bone = mesh->mBones[i];
@@ -905,7 +911,7 @@ std::vector<VertexBoneData> RecIvpntRiggedCollector::process_mesh_vertices_bone_
         // whenever it is the next one and not being reused, then we are looking at a new bone
         // therefore we should add to the bone_info thing
         if (bone_id == bone_unique_idx_to_info.size()) {
-            BoneInfo bi(ai_matrix4x4_to_glm_mat4(bone->mOffsetMatrix));
+            draw_info::BoneInfo bi(ai_matrix4x4_to_glm_mat4(bone->mOffsetMatrix));
             print_matrix(ai_matrix4x4_to_glm_mat4(bone->mOffsetMatrix), "bone offset matrix");
             bone_unique_idx_to_info.push_back(bi);
         }
@@ -933,23 +939,4 @@ std::vector<VertexBoneData> RecIvpntRiggedCollector::process_mesh_vertices_bone_
     return bone_data_for_mesh;
 }
 
-void VertexBoneData::add_bone_data(unsigned int BoneID, float Weight) {
-    for (unsigned int i = 0; i < 4; i++) {
-        if (weight_value_of_this_vertex_wrt_bone[i] == 0.0) {
-            indices_of_bones_that_affect_this_vertex[i] = BoneID;
-            weight_value_of_this_vertex_wrt_bone[i] = Weight;
-            /*std::cout << "Bone ID " << BoneID << " weight " << Weight << " stored at local index " << i <<
-             * std::endl;*/
-            return;
-        }
-    }
-
-    bool logging = false;
-    if (logging) {
-        std::cout << "was about to add bone data, but we've already associated 4 weights, not adding" << std::endl;
-    }
-    /*assert(false); // Should never get here if we have enough space for bones, otherwise we need to increment the
-     * num*/
-    /*// bones count*/
-}
 } // namespace rigged_model_loading
