@@ -21,6 +21,9 @@ If you've never exported an animation in and run it in another software other th
 
 You must name your armatures using the following format `X_..._armature` eg) `character_armature` and so on, also animations must follow a similar convention, so for example you have to name your action `Y_character_anim` eg) `run_character_anim` this must be done because when exporting an animation with mutiple armatures with the animation it generates a bunch of empty animations for the armatures that were not used during that animation, and we needed a way to extract which animation is for what armature, this also works because when blender exports to fbx the actions get named like this: `character_armature|run_character_anim`, so that when we see an animation of this form`character_armature|fire_gun_anim` then we don't have to care about it.
 
+## animation start time
+Make sure that the first keframe start together for an animation across all armatures, same for the end time, best thing to do is to put a keyframe at the start and end, otherwise things start unsynchronized, I think this has to do with the find nearest key code.
+
 ## Baking Animations
 
 ### Why Bake?
