@@ -57,6 +57,15 @@ class RecIvpntRiggedCollector {
     std::unordered_map<std::string, std::unordered_map<std::string, int>>
         armature_node_name_to_animation_name_to_assimp_animation_index;
 
+    // note that an animation might have multiple animation indices, because you
+    // get one for each armature involved in an animation, for our purposes, we simply use
+    // any such one of those armature indices, we run under the assumption that the metadata
+    // about each one is the same (which might be the cause of some errors)
+    std::unordered_map<std::string, int> animation_name_to_assimp_animation_index;
+
+    std::unordered_map<std::string, std::unordered_map<std::string, int>>
+    build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScene *scene);
+
     // this is used for for eventually binding into uniforms with all the matrices, then in the shader
     // we also have a vertex attribute for each vertex which specifies the id of which matrices to use...
     void set_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
@@ -73,8 +82,6 @@ void print_ai_animation(const aiAnimation *anim);
 unsigned int find_animation_index_by_name(const aiScene *scene, const std::string &animationName);
 
 bool is_armature_node(const aiNode *node);
-std::unordered_map<std::string, std::unordered_map<std::string, int>>
-build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScene *scene);
 
 unsigned int find_idx_of_scaling_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);
 unsigned int find_idx_of_rotation_key_for_given_time(float animation_time_ticks, const aiNodeAnim *node_anim);

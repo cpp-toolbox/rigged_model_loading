@@ -505,20 +505,19 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
 
     /*print_ai_animation(scene->mAnimations[0]);*/
     // uses 25 fps if ticks per second was not specified
-    float ticks_per_second =
-        (float)(scene->mAnimations[0]->mTicksPerSecond != 0 ? scene->mAnimations[0]->mTicksPerSecond : 25.0f);
+
+    int assimp_animation_index = animation_name_to_assimp_animation_index[requested_animation];
+    float ticks_per_second = (float)(scene->mAnimations[assimp_animation_index]->mTicksPerSecond != 0
+                                         ? scene->mAnimations[assimp_animation_index]->mTicksPerSecond
+                                         : 25.0f);
     float time_in_ticks = ticks_per_second * current_animation_time;
-    float max_duration = 0.0f;
-    for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
-        if (scene->mAnimations[i]->mDuration > max_duration) {
-            max_duration = scene->mAnimations[i]->mDuration;
-        }
-    }
+    float duration = scene->mAnimations[assimp_animation_index]->mDuration;
+
     float animation_time_ticks;
     if (loop) {
-        animation_time_ticks = fmod(time_in_ticks, max_duration);
+        animation_time_ticks = fmod(time_in_ticks, duration);
     } else {
-        if (time_in_ticks >= max_duration) {
+        if (time_in_ticks >= duration) {
             animation_time_ticks = no_anim_sentinel;
         } else {
             animation_time_ticks = time_in_ticks;
@@ -660,7 +659,7 @@ std::string get_full_node_path(const aiNode *node) {
  */
 
 std::unordered_map<std::string, std::unordered_map<std::string, int>>
-build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScene *scene) {
+RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScene *scene) {
     if (!scene) {
         std::cerr << "Invalid scene pointer provided!" << std::endl;
         return {};
@@ -670,29 +669,30 @@ build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScen
 
     std::unordered_map<std::string, std::unordered_map<std::string, int>> armature_to_animation_map;
 
-    // NOTE: the animation name always seems to be of the form `armature_name|action_name` (action name is really
-    // the animation name)
-    std::regex animation_name_regex(R"((.+)_armature\|(.+)_anim)");
+    // Updated regex to capture optional "_baked" suffix
+    std::regex animation_name_regex(R"((.+)_armature\|(.+)_anim(_baked)?)");
 
     for (unsigned int animation_index = 0; animation_index < scene->mNumAnimations; ++animation_index) {
         aiAnimation *animation = scene->mAnimations[animation_index];
 
-        std::string animation_name = animation->mName.C_Str(); // this must satisfy the assumption in the docstring
+        std::string animation_name = animation->mName.C_Str();
         std::smatch match;
 
         std::cout << "Processing animation " << animation_index << ": " << animation_name << std::endl;
 
-        // Check if the animation name matches the expected pattern
-        if (std::regex_match(animation_name, match, animation_name_regex) && match.size() == 3) {
+        // match the animation name pattern
+        if (std::regex_match(animation_name, match, animation_name_regex) && match.size() >= 3) {
             std::string armature_base_name = match[1].str();
             std::string armature_name = armature_base_name + "_armature";
             std::string action_name = match[2].str();
+            bool is_baked = match.size() == 4 && match[3].matched; // Check if _baked was captured
 
             std::cout << "  Parsed armature name: " << armature_name << std::endl;
             std::cout << "  Parsed action name: " << action_name << std::endl;
             std::cout << "  Stripped armature name: " << armature_base_name << std::endl;
+            std::cout << "  Baked: " << (is_baked ? "Yes" : "No") << std::endl;
 
-            // If action_name exactly matches armature_base_name, set it to an empty string
+            // Normalize action name
             if (action_name == armature_base_name) {
                 action_name = "";
             } else if (action_name.ends_with("_" + armature_base_name)) {
@@ -701,9 +701,21 @@ build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScen
 
             std::cout << "  Final action name: " << action_name << std::endl;
 
-            armature_to_animation_map[armature_name][action_name] = animation_index;
-            std::cout << "  Added to map: " << armature_name << " -> " << action_name << " -> " << animation_index
-                      << std::endl;
+            animation_name_to_assimp_animation_index[action_name] = animation_index;
+
+            // Check if a non-baked version exists and replace only if the new one is baked
+            auto &animation_map = armature_to_animation_map[armature_name];
+            auto existing_entry = animation_map.find(action_name);
+
+            bool should_clobber = existing_entry == animation_map.end() || is_baked;
+            bool temporary = existing_entry == animation_map.end() || not is_baked;
+            if (temporary) {
+                animation_map[action_name] = animation_index;
+                std::cout << "  Added to map: " << armature_name << " -> " << action_name << " -> " << animation_index
+                          << " (Baked: " << (is_baked ? "Yes" : "No") << ")" << std::endl;
+            } else {
+                std::cout << "  Skipped: Keeping existing non-baked version." << std::endl;
+            }
         } else {
             std::cout << "  Skipped: Name does not match pattern." << std::endl;
         }
