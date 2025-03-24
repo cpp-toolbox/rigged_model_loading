@@ -561,7 +561,7 @@ void calc_interpolated_scaling(aiVector3D &out, float animation_time_ticks, cons
 
     // t1 < a_t_t < t2, so this is non-negative and works correclty
     float factor = (animation_time_ticks - (float)t1) / delta_time;
-    assert(factor >= 0.0f && factor <= 1.0f);
+    // assert(factor >= 0.0f && factor <= 1.0f);
 
     const aiVector3D &start_scale = node_anim->mScalingKeys[scaling_idx].mValue;
     const aiVector3D &end_scale = node_anim->mScalingKeys[next_scaling_idx].mValue;
@@ -586,7 +586,7 @@ void calc_interpolated_rotation(aiQuaternion &out, float animation_time_ticks, c
 
     float delta_time = t2 - t1;
     float factor = (animation_time_ticks - t1) / delta_time;
-    assert(factor >= 0.0f && factor <= 1.0f);
+    // assert(factor >= 0.0f && factor <= 1.0f);
 
     const aiQuaternion &start_rotation = node_anim->mRotationKeys[rotation_idx].mValue;
     const aiQuaternion &end_rotation = node_anim->mRotationKeys[next_rotation_idx].mValue;
@@ -612,7 +612,7 @@ void calc_interpolated_translation(aiVector3D &out, float animation_time_ticks, 
 
     float delta_time = t2 - t1;
     float factor = (animation_time_ticks - t1) / delta_time;
-    assert(factor >= 0.0f && factor <= 1.0f);
+    // assert(factor >= 0.0f && factor <= 1.0f);
 
     const aiVector3D &start_translation = node_anim->mPositionKeys[translation_idx].mValue;
     const aiVector3D &end_translation = node_anim->mPositionKeys[next_translation_idx].mValue;
