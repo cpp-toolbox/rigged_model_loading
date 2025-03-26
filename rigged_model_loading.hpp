@@ -78,7 +78,9 @@ class RecIvpntRiggedCollector {
 const aiNodeAnim *find_node_anim(const aiAnimation *pAnimation, const std::string &NodeName);
 std::string get_full_node_path(const aiNode *node);
 void print_all_animations(const aiScene *scene);
+void print_ai_animation_short(const aiAnimation *anim);
 void print_ai_animation(const aiAnimation *anim);
+void print_ai_node_anim(const aiNodeAnim* anim);
 unsigned int find_animation_index_by_name(const aiScene *scene, const std::string &animationName);
 
 bool is_armature_node(const aiNode *node);

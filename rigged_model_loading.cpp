@@ -67,6 +67,41 @@ void print_ai_animation_info(const aiAnimation *animation) {
     }
 }
 
+void print_ai_node_anim(const aiNodeAnim* anim) {
+    if (!anim) {
+        std::cout << "Invalid aiNodeAnim pointer.\n";
+        return;
+    }
+
+    std::cout << "Node Animation: " << anim->mNodeName.C_Str() << "\n";
+    std::cout << "-----------------------------------\n";
+
+    std::cout << "Position Keys (" << anim->mNumPositionKeys << "):\n";
+    for (unsigned int i = 0; i < anim->mNumPositionKeys; ++i) {
+        const aiVectorKey& key = anim->mPositionKeys[i];
+        std::cout << "  Time: " << key.mTime << " | Position: (" 
+                  << key.mValue.x << ", " << key.mValue.y << ", " << key.mValue.z << ")\n";
+    }
+
+    std::cout << "\nRotation Keys (" << anim->mNumRotationKeys << "):\n";
+    for (unsigned int i = 0; i < anim->mNumRotationKeys; ++i) {
+        const aiQuatKey& key = anim->mRotationKeys[i];
+        std::cout << "  Time: " << key.mTime << " | Rotation: (" 
+                  << key.mValue.x << ", " << key.mValue.y << ", " 
+                  << key.mValue.z << ", " << key.mValue.w << ")\n";
+    }
+
+    std::cout << "\nScaling Keys (" << anim->mNumScalingKeys << "):\n";
+    for (unsigned int i = 0; i < anim->mNumScalingKeys; ++i) {
+        const aiVectorKey& key = anim->mScalingKeys[i];
+        std::cout << "  Time: " << key.mTime << " | Scale: (" 
+                  << key.mValue.x << ", " << key.mValue.y << ", " << key.mValue.z << ")\n";
+    }
+
+    std::cout << "\nPre-State: " << anim->mPreState << "\n";
+    std::cout << "Post-State: " << anim->mPostState << "\n";
+}
+
 /**
  * @brief Extracts the translation vector from a 4x4 transformation matrix.
  *
@@ -223,6 +258,10 @@ glm::mat4 ai_matrix3x3_to_glm_mat4(const aiMatrix3x3 &ai_mat) {
     return glmMat;
 }
 
+void print_ai_animation_short(const aiAnimation *anim) {
+    std::cout << "| Animation Name: " << anim->mName.data << std::endl;
+}
+
 void print_ai_animation(const aiAnimation *anim) {
     // Draw top border
     std::cout << "+-----------------------------------------------+" << std::endl;
@@ -367,6 +406,8 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
     if (node_is_armature) {
         curr_animation_index_rec =
             armature_node_name_to_animation_name_to_assimp_animation_index.at(node_name).at(requested_animation);
+
+        std::cout << "using curr_animation_index_rec: " << curr_animation_index_rec << std::endl;
         if (logging) {
             // Indented print output
             std::cout << "this node is an armature using the following animation index:" << curr_animation_index_rec
@@ -374,8 +415,15 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
         }
     }
 
+    std::cout << "inside using: " << curr_animation_index_rec << std::endl;
     const aiAnimation *animation = scene->mAnimations[curr_animation_index_rec];
+
+    print_ai_animation_short(animation);
+
+    // each bone in the hierarchy gets its own animation in this setup.
     const aiNodeAnim *node_anim = find_node_anim(animation, node_name);
+
+    print_ai_node_anim(node_anim);
 
     bool node_is_animated = node_anim != NULL;
     bool user_requested_no_anim = animation_time_ticks == no_anim_sentinel;
@@ -790,6 +838,8 @@ unsigned int find_animation_index_by_name(const aiScene *scene, const std::strin
     return -1; // Return an invalid index if animation is not found
 }
 
+
+// note that node names are something of the form wrist_bone.R they are the bones in the armature
 const aiNodeAnim *find_node_anim(const aiAnimation *pAnimation, const std::string &NodeName) {
     for (unsigned int i = 0; i < pAnimation->mNumChannels; i++) {
         const aiNodeAnim *pNodeAnim = pAnimation->mChannels[i];
