@@ -32,14 +32,12 @@ void print_ai_animation_info(const aiAnimation *animation) {
         return;
     }
 
-    // Print basic information
     std::cout << "Animation Name: " << animation->mName.C_Str() << "\n";
     std::cout << "Duration: " << animation->mDuration << " ticks\n";
     std::cout << "Ticks per second: "
               << (animation->mTicksPerSecond == 0 ? "Not specified" : std::to_string(animation->mTicksPerSecond))
               << "\n";
 
-    // Print node animation channels
     std::cout << "Number of Node Animation Channels: " << animation->mNumChannels << "\n";
     for (unsigned int i = 0; i < animation->mNumChannels; ++i) {
         const aiNodeAnim *channel = animation->mChannels[i];
@@ -48,7 +46,6 @@ void print_ai_animation_info(const aiAnimation *animation) {
         }
     }
 
-    // Print mesh animation channels
     std::cout << "Number of Mesh Animation Channels: " << animation->mNumMeshChannels << "\n";
     for (unsigned int i = 0; i < animation->mNumMeshChannels; ++i) {
         const aiMeshAnim *meshChannel = animation->mMeshChannels[i];
@@ -57,7 +54,6 @@ void print_ai_animation_info(const aiAnimation *animation) {
         }
     }
 
-    // Print morph mesh animation channels
     std::cout << "Number of Morph Mesh Animation Channels: " << animation->mNumMorphMeshChannels << "\n";
     for (unsigned int i = 0; i < animation->mNumMorphMeshChannels; ++i) {
         const aiMeshMorphAnim *morphChannel = animation->mMorphMeshChannels[i];
@@ -67,7 +63,7 @@ void print_ai_animation_info(const aiAnimation *animation) {
     }
 }
 
-void print_ai_node_anim(const aiNodeAnim* anim) {
+void print_ai_node_anim(const aiNodeAnim *anim) {
     if (!anim) {
         std::cout << "Invalid aiNodeAnim pointer.\n";
         return;
@@ -78,24 +74,23 @@ void print_ai_node_anim(const aiNodeAnim* anim) {
 
     std::cout << "Position Keys (" << anim->mNumPositionKeys << "):\n";
     for (unsigned int i = 0; i < anim->mNumPositionKeys; ++i) {
-        const aiVectorKey& key = anim->mPositionKeys[i];
-        std::cout << "  Time: " << key.mTime << " | Position: (" 
-                  << key.mValue.x << ", " << key.mValue.y << ", " << key.mValue.z << ")\n";
+        const aiVectorKey &key = anim->mPositionKeys[i];
+        std::cout << "  Time: " << key.mTime << " | Position: (" << key.mValue.x << ", " << key.mValue.y << ", "
+                  << key.mValue.z << ")\n";
     }
 
     std::cout << "\nRotation Keys (" << anim->mNumRotationKeys << "):\n";
     for (unsigned int i = 0; i < anim->mNumRotationKeys; ++i) {
-        const aiQuatKey& key = anim->mRotationKeys[i];
-        std::cout << "  Time: " << key.mTime << " | Rotation: (" 
-                  << key.mValue.x << ", " << key.mValue.y << ", " 
+        const aiQuatKey &key = anim->mRotationKeys[i];
+        std::cout << "  Time: " << key.mTime << " | Rotation: (" << key.mValue.x << ", " << key.mValue.y << ", "
                   << key.mValue.z << ", " << key.mValue.w << ")\n";
     }
 
     std::cout << "\nScaling Keys (" << anim->mNumScalingKeys << "):\n";
     for (unsigned int i = 0; i < anim->mNumScalingKeys; ++i) {
-        const aiVectorKey& key = anim->mScalingKeys[i];
-        std::cout << "  Time: " << key.mTime << " | Scale: (" 
-                  << key.mValue.x << ", " << key.mValue.y << ", " << key.mValue.z << ")\n";
+        const aiVectorKey &key = anim->mScalingKeys[i];
+        std::cout << "  Time: " << key.mTime << " | Scale: (" << key.mValue.x << ", " << key.mValue.y << ", "
+                  << key.mValue.z << ")\n";
     }
 
     std::cout << "\nPre-State: " << anim->mPreState << "\n";
@@ -402,31 +397,49 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
     // NOTE: huge assumption:
     // the following works because an armature node is the root of all the bones, when we set
     // curre_animation_index_rec it stays as its value until we are done with that armature so nothing bad occurs
+
     bool node_is_armature = is_armature_node(node);
+
+    if (logging)
+        std::cout << get_indentation() << "on node: " << node_name << " is armature node " << node_is_armature
+                  << std::endl;
     if (node_is_armature) {
         curr_animation_index_rec =
             armature_node_name_to_animation_name_to_assimp_animation_index.at(node_name).at(requested_animation);
 
-        std::cout << "using curr_animation_index_rec: " << curr_animation_index_rec << std::endl;
         if (logging) {
             // Indented print output
+            std::cout << "using curr_animation_index_rec: " << curr_animation_index_rec << std::endl;
             std::cout << "this node is an armature using the following animation index:" << curr_animation_index_rec
                       << std::endl;
         }
     }
-
-    std::cout << "inside using: " << curr_animation_index_rec << std::endl;
+    if (logging)
+        std::cout << "inside using: " << curr_animation_index_rec << std::endl;
     const aiAnimation *animation = scene->mAnimations[curr_animation_index_rec];
 
-    print_ai_animation_short(animation);
+    if (logging)
+        print_ai_animation_short(animation);
 
+    if (logging)
+        std::cout << "node_name: " << node_name << std::endl;
     // each bone in the hierarchy gets its own animation in this setup.
     const aiNodeAnim *node_anim = find_node_anim(animation, node_name);
 
-    print_ai_node_anim(node_anim);
+    if (logging)
+        print_ai_node_anim(node_anim);
 
     bool node_is_animated = node_anim != NULL;
     bool user_requested_no_anim = animation_time_ticks == no_anim_sentinel;
+
+    std::string urna = user_requested_no_anim ? "yes" : "no";
+
+    std::string should_apply_animation = not user_requested_no_anim and node_is_animated ? "yes" : "no";
+
+    if (logging) {
+        std::cout << "user requested no animation: " << urna << std::endl;
+        std::cout << "should apply animation: " << should_apply_animation << std::endl;
+    }
 
     if (not user_requested_no_anim and node_is_animated) {
 
@@ -482,15 +495,17 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
     }
 
     // this variable describes the requirement for membership into the bone_name_to_unique_index
-    // the vector is constructed when parse_model_into_ivptrs is called
-    /*bool this_node_is_a_bone_and_weve_processed_its_vertex_data =*/
+    // the vector is constructed when parse_model_into_ivptrs is called, if it is in there then the node is a bone
+    // otherwise it is not
     bool node_is_bone = bone_name_to_unique_index.find(node_name) != bone_name_to_unique_index.end();
 
     if (node_is_bone) {
 
         if (logging) {
             std::cout << get_indentation() << "this node was a bone" << std::endl;
+            std::cout << "bound data into the bone_unique_idx_to_info matrix" << std::endl;
         }
+
         int bone_idx = bone_name_to_unique_index[node_name];
         auto &bi =
             bone_unique_idx_to_info[bone_idx]; // this is guaranteed safe cause already exists in there for some reason
@@ -540,6 +555,14 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
  */
 void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
                                                   std::string requested_animation, bool loop, bool restart) {
+    bool logging = false;
+
+    if (logging) {
+        std::cout << "delta_time: " << delta_time << "\n"
+                  << "requested_animation: " << requested_animation << "\n"
+                  << "loop: " << std::boolalpha << loop << "\n"
+                  << "restart: " << std::boolalpha << restart << "\n";
+    }
 
     if (current_animation_name != requested_animation or restart) {
         // restart the current animation if you request a new one
@@ -548,8 +571,6 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
 
     current_animation_name = requested_animation;
     current_animation_time += delta_time;
-
-    transforms_to_be_set.resize(bone_unique_idx_to_info.size());
 
     /*print_ai_animation(scene->mAnimations[0]);*/
     // uses 25 fps if ticks per second was not specified
@@ -572,8 +593,6 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
         }
     }
 
-    bool logging = false;
-
     if (logging) {
         std::cout << "=== STARTING UPDATE ANIMATION MATRICES ===" << std::endl;
     }
@@ -582,6 +601,7 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
         std::cout << "=== ENDING UPDATE ANIMATION MATRICES ===" << std::endl;
     }
 
+    transforms_to_be_set.resize(bone_unique_idx_to_info.size());
     /*spdlog::info("bone info size", bone_info.size());*/
     for (unsigned int i = 0; i < bone_unique_idx_to_info.size(); i++) {
         /*spdlog::info("setting transform {}", bone_info[i].full_bone_space_to_local_space_transformation[0][0]);*/
@@ -713,7 +733,10 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
         return {};
     }
 
-    std::cout << "Building armature to animation map..." << std::endl;
+    bool logging = false;
+
+    if (logging)
+        std::cout << "Building armature to animation map..." << std::endl;
 
     std::unordered_map<std::string, std::unordered_map<std::string, int>> armature_to_animation_map;
 
@@ -726,7 +749,8 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
         std::string animation_name = animation->mName.C_Str();
         std::smatch match;
 
-        std::cout << "Processing animation " << animation_index << ": " << animation_name << std::endl;
+        if (logging)
+            std::cout << "Processing animation " << animation_index << ": " << animation_name << std::endl;
 
         // match the animation name pattern
         if (std::regex_match(animation_name, match, animation_name_regex) && match.size() >= 3) {
@@ -735,10 +759,12 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
             std::string action_name = match[2].str();
             bool is_baked = match.size() == 4 && match[3].matched; // Check if _baked was captured
 
-            std::cout << "  Parsed armature name: " << armature_name << std::endl;
-            std::cout << "  Parsed action name: " << action_name << std::endl;
-            std::cout << "  Stripped armature name: " << armature_base_name << std::endl;
-            std::cout << "  Baked: " << (is_baked ? "Yes" : "No") << std::endl;
+            if (logging) {
+                std::cout << "  Parsed armature name: " << armature_name << std::endl;
+                std::cout << "  Parsed action name: " << action_name << std::endl;
+                std::cout << "  Stripped armature name: " << armature_base_name << std::endl;
+                std::cout << "  Baked: " << (is_baked ? "Yes" : "No") << std::endl;
+            }
 
             // Normalize action name
             if (action_name == armature_base_name) {
@@ -747,7 +773,8 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
                 action_name = action_name.substr(0, action_name.size() - armature_base_name.size() - 1);
             }
 
-            std::cout << "  Final action name: " << action_name << std::endl;
+            if (logging)
+                std::cout << "  Final action name: " << action_name << std::endl;
 
             animation_name_to_assimp_animation_index[action_name] = animation_index;
 
@@ -756,21 +783,24 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
             auto existing_entry = animation_map.find(action_name);
 
             bool should_clobber = existing_entry == animation_map.end() || is_baked;
-            bool temporary = existing_entry == animation_map.end() || not is_baked;
-            if (temporary) {
+            if (should_clobber) {
                 animation_map[action_name] = animation_index;
-                std::cout << "  Added to map: " << armature_name << " -> " << action_name << " -> " << animation_index
-                          << " (Baked: " << (is_baked ? "Yes" : "No") << ")" << std::endl;
+                if (logging)
+                    std::cout << "  Added to map: " << armature_name << " -> " << action_name << " -> "
+                              << animation_index << " (Baked: " << (is_baked ? "Yes" : "No") << ")" << std::endl;
             } else {
-                std::cout << "  Skipped: Keeping existing non-baked version." << std::endl;
+                if (logging)
+                    std::cout << "  Skipped: Keeping existing non-baked version." << std::endl;
             }
         } else {
-            std::cout << "  Skipped: Name does not match pattern." << std::endl;
+            if (logging)
+                std::cout << "  Skipped: Name does not match pattern." << std::endl;
         }
     }
 
-    std::cout << "Completed building armature to animation map. Total entries: " << armature_to_animation_map.size()
-              << std::endl;
+    if (logging)
+        std::cout << "Completed building armature to animation map. Total entries: " << armature_to_animation_map.size()
+                  << std::endl;
 
     return armature_to_animation_map;
 }
@@ -838,7 +868,6 @@ unsigned int find_animation_index_by_name(const aiScene *scene, const std::strin
     return -1; // Return an invalid index if animation is not found
 }
 
-
 // note that node names are something of the form wrist_bone.R they are the bones in the armature
 const aiNodeAnim *find_node_anim(const aiAnimation *pAnimation, const std::string &NodeName) {
     for (unsigned int i = 0; i < pAnimation->mNumChannels; i++) {
@@ -902,6 +931,8 @@ std::vector<draw_info::IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_iv
     const aiScene *scene = this->importer.ReadFile(model_path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
     this->scene = scene;
 
+    bool logging = false;
+
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         std::cerr << "Error: Assimp - " << importer.GetErrorString() << std::endl;
     }
@@ -909,14 +940,19 @@ std::vector<draw_info::IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_iv
     this->directory_to_asset_being_loaded = get_containing_directory(model_path) + get_path_delimiter();
 
     glm::mat4 root_node_transform = ai_matrix4x4_to_glm_mat4(scene->mRootNode->mTransformation);
-    print_matrix(root_node_transform, "root_node_transform");
-    inverse_root_node_transform = glm::inverse(root_node_transform);
-    print_matrix(inverse_root_node_transform, "inverse_root_node_transform");
 
-    print_all_animations(scene);
+    if (logging)
+        print_matrix(root_node_transform, "root_node_transform");
+    inverse_root_node_transform = glm::inverse(root_node_transform);
+    if (logging)
+        print_matrix(inverse_root_node_transform, "inverse_root_node_transform");
+
+    if (logging)
+        print_all_animations(scene);
     armature_node_name_to_animation_name_to_assimp_animation_index =
         build_armature_name_to_animation_name_to_assimp_animation_index_map(scene);
-    print_antantaaim(armature_node_name_to_animation_name_to_assimp_animation_index);
+    if (logging)
+        print_antantaaim(armature_node_name_to_animation_name_to_assimp_animation_index);
 
     this->rec_process_nodes(scene->mRootNode, scene);
     return this->ivpntrs;
