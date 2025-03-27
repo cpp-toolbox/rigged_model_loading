@@ -554,7 +554,8 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
  * @pre the asset of interest has been loaded already via parse model
  */
 void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
-                                                  std::string requested_animation, bool loop, bool restart) {
+                                                  std::string requested_animation, bool loop, bool restart,
+                                                  bool hold_last_frame) {
     bool logging = false;
 
     if (logging) {
@@ -587,7 +588,14 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
         animation_time_ticks = fmod(time_in_ticks, duration);
     } else {
         if (time_in_ticks >= duration) {
-            animation_time_ticks = no_anim_sentinel;
+            if (not hold_last_frame) {
+                animation_time_ticks = no_anim_sentinel;
+            } else {
+                // NOTE: doing this because it puts us between the last and second last frame
+                // otherwise there is a bug where it cannot interpolate (it's probably tryign to interpolate beween the
+                // last frame twice).
+                animation_time_ticks = duration - .1;
+            }
         } else {
             animation_time_ticks = time_in_ticks;
         }

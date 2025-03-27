@@ -69,7 +69,8 @@ class RecIvpntRiggedCollector {
     // this is used for for eventually binding into uniforms with all the matrices, then in the shader
     // we also have a vertex attribute for each vertex which specifies the id of which matrices to use...
     void set_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
-                             std::string requested_animation, bool loop = false, bool restart = false);
+                             std::string requested_animation, bool loop = false, bool restart = false,
+                             bool hold_last_frame = false);
     void update_animation_matrices(float animation_time_ticks, std::string requested_animation);
     void rec_update_animation_matrices(float animation_time_ticks, glm::mat4 parent_transform, aiNode *node,
                                        const aiScene *scene, int rec_depth, std::string requested_animation);
@@ -80,7 +81,7 @@ std::string get_full_node_path(const aiNode *node);
 void print_all_animations(const aiScene *scene);
 void print_ai_animation_short(const aiAnimation *anim);
 void print_ai_animation(const aiAnimation *anim);
-void print_ai_node_anim(const aiNodeAnim* anim);
+void print_ai_node_anim(const aiNodeAnim *anim);
 unsigned int find_animation_index_by_name(const aiScene *scene, const std::string &animationName);
 
 bool is_armature_node(const aiNode *node);
