@@ -302,6 +302,26 @@ void print_ai_animation(const aiAnimation *anim) {
     std::cout << "+-----------------------------------------------+" << std::endl;
 }
 
+// so that you can attach an item to a bone and keep it attached while animations still play
+glm::mat4
+RecIvpntRiggedCollector::get_the_transform_to_attach_an_object_to_a_bone(std::string bone_name,
+                                                                         Transform &bone_origin_attachment_offset) {
+
+    int bone_index = bone_name_to_unique_index[bone_name];
+    draw_info::BoneInfo bone_info = bone_unique_idx_to_info[bone_index];
+    auto the_transform_that_translates_the_origin_to_the_bones_origin =
+        glm::inverse(bone_info.local_space_to_bone_space_in_bind_pose_transformation);
+
+    // put it in the right spot, then git it some translation
+    the_transform_that_translates_the_origin_to_the_bones_origin =
+        bone_origin_attachment_offset.get_transform_matrix() * the_transform_that_translates_the_origin_to_the_bones_origin;
+    // then animate it which will work because the emitter is relative to the mesh in bind pose now.
+    auto animated_transform = bone_info.local_space_animated_transform_upto_this_bone *
+                              the_transform_that_translates_the_origin_to_the_bones_origin;
+
+    return animated_transform;
+}
+
 // should only ever get called once
 void RecIvpntRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *scene) {
     // Helper to generate indentation based on the recursion level
@@ -588,6 +608,7 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
         animation_time_ticks = fmod(time_in_ticks, duration);
     } else {
         if (time_in_ticks >= duration) {
+            animation_is_complete = true;
             if (not hold_last_frame) {
                 animation_time_ticks = no_anim_sentinel;
             } else {
@@ -597,6 +618,7 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
                 animation_time_ticks = duration - .1;
             }
         } else {
+            animation_is_complete = false;
             animation_time_ticks = time_in_ticks;
         }
     }

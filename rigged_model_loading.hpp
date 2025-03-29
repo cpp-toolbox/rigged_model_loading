@@ -28,8 +28,11 @@ class RecIvpntRiggedCollector {
     int recursion_level_counter = 0;
     int no_anim_sentinel = -1;
     std::string current_animation_name;
+    bool animation_is_complete = false;
     double current_animation_time = 0;
     void rec_process_nodes(aiNode *node, const aiScene *scene);
+    glm::mat4 get_the_transform_to_attach_an_object_to_a_bone(std::string bone_name,
+                                                              Transform &bone_origin_attachment_offset);
 
     // we work with the transforms of the bones of a mesh, but we never look at the root bone/node's transform
     // if it does have a transform, then in that case it means that the model is already placed somewhere in the world,
