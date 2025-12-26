@@ -39,7 +39,7 @@ class RecIvpntRiggedCollector {
     // therefore if we only used the transforms of the non-root nodes it would never get placed where it has to be,
     // therefore since this transform shows how to go from the root node to the origin, then the inverse takes us from
     // the origin to the root node.
-    glm::mat4 inverse_root_node_transform;
+    glm::dmat4 inverse_root_node_transform;
     int get_next_bone_id(const aiBone *pBone);
     // NOTE: this is populated during the initial parse_model function
     // bone names are parsed from the file directly
@@ -75,7 +75,7 @@ class RecIvpntRiggedCollector {
                              std::string requested_animation, bool loop = false, bool restart = false,
                              bool hold_last_frame = false);
     void update_animation_matrices(float animation_time_ticks, std::string requested_animation);
-    void rec_update_animation_matrices(float animation_time_ticks, glm::mat4 parent_transform, aiNode *node,
+    void rec_update_animation_matrices(float animation_time_ticks, glm::dmat4 parent_transform, aiNode *node,
                                        const aiScene *scene, int rec_depth, std::string requested_animation);
 };
 

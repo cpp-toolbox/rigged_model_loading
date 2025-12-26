@@ -314,7 +314,8 @@ RecIvpntRiggedCollector::get_the_transform_to_attach_an_object_to_a_bone(std::st
 
     // put it in the right spot, then git it some translation
     the_transform_that_translates_the_origin_to_the_bones_origin =
-        bone_origin_attachment_offset.get_transform_matrix() * the_transform_that_translates_the_origin_to_the_bones_origin;
+        bone_origin_attachment_offset.get_transform_matrix() *
+        the_transform_that_translates_the_origin_to_the_bones_origin;
     // then animate it which will work because the emitter is relative to the mesh in bind pose now.
     auto animated_transform = bone_info.local_space_animated_transform_upto_this_bone *
                               the_transform_that_translates_the_origin_to_the_bones_origin;
@@ -388,7 +389,7 @@ void RecIvpntRiggedCollector::rec_process_nodes(aiNode *node, const aiScene *sce
 }
 
 void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time_ticks,
-                                                            glm::mat4 parent_animation_transform_in_local_space,
+                                                            glm::dmat4 parent_animation_transform_in_local_space,
                                                             aiNode *node, const aiScene *scene, int rec_depth,
                                                             std::string requested_animation) {
     // Helper to generate indentation based on the recursion level
@@ -405,7 +406,7 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
         print_matrix(parent_animation_transform_in_local_space, "parent_transform", rec_depth);
     }
 
-    glm::mat4 animation_transform_for_current_time_in_bone_space = ai_matrix4x4_to_glm_mat4(node->mTransformation);
+    glm::dmat4 animation_transform_for_current_time_in_bone_space = ai_matrix4x4_to_glm_mat4(node->mTransformation);
 
     std::string node_name(node->mName.data);
 
@@ -502,7 +503,7 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
 
     // note that the recursion goes outward towards leaves, but we think the other way, associativity of
     // matrix multiplication reconciles this.
-    glm::mat4 bone_to_local_animation_transform_up_to_this_node =
+    glm::dmat4 bone_to_local_animation_transform_up_to_this_node =
         parent_animation_transform_in_local_space * animation_transform_for_current_time_in_bone_space;
 
     if (logging) {
@@ -967,7 +968,8 @@ std::vector<draw_info::IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_iv
         std::cerr << "Error: Assimp - " << importer.GetErrorString() << std::endl;
     }
 
-    this->directory_to_asset_being_loaded = get_containing_directory(model_path) + get_path_delimiter();
+    this->directory_to_asset_being_loaded =
+        fs_utils::get_containing_directory(model_path) + fs_utils::get_path_delimiter();
 
     glm::mat4 root_node_transform = ai_matrix4x4_to_glm_mat4(scene->mRootNode->mTransformation);
 
@@ -1005,7 +1007,7 @@ draw_info::IVPNTRigged RecIvpntRiggedCollector::process_mesh_ivpntrs(aiMesh *mes
             vertices,
             normals,
             texture_coordinates,
-            normalize_path_for_os(main_texture),
+            fs_utils::normalize_path_for_os(main_texture),
             bone_data,
             ivpntr_id_generator.get_id()};
 };
