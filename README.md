@@ -6,10 +6,12 @@ As of right now the rigged model loading only seems to support `.fbx` so make su
 
 This has to occur because there are various problems with armatures when they get exported to fbx having a scaledown of 100x and also being rotated usually.
 
+## the animation is crazy and distorts everything
+The most common cause of this is when there is a transform being applied to armature or the model that's influenced by the armature.Most of the time fixing this is to just apply all transformations for your exported animation to look right
+
 ## general tips when working with armatures
 
 If you've never exported an animation in and run it in another software other than the one you use, then you might have some bad habits which make your export not work well, keep the following in mind:
-- you must apply all transformations for your exported animation to look right
 - make sure there are at least 2 keyframes or else the animation will not start (for interpolation purposes)
 - when scaling an object with an armature as parent, only scale the armature, and not the underlying geometry, if you do woth at once then you'll probably have a double scaling occuring and the export will not be correct
 
@@ -31,6 +33,8 @@ Make sure that the first keframe start together for an animation across all arma
 When making animations in blender you have access to tools that will make animating easier, usually these tools are not portable and are specific to blender, thus when you export your animation, those tools will not be able to be used, thus you must "bake" in the tools effect into the file on export or else other programs which try to open the file will not see these effects. A simple example of this would be if you only work in `.blend` files and are using a mirror modifier and you export to `.fbx` or `.obj` clearly that reflect data will not be there and you'd only get half the model, this is why baking in general is important.
 
 Additionally another reason to bake is that whenever you have multiple armatures which a possibly different number of keyframes and starting points, then when you bake the animation it forces them all to use the same number of keyframes and start at the same time which is a good thing to do to make importing as simple as possible.
+
+NOTE: you only need backing when you use modifiers or blender specific things not related to base keyframes in your animations
 
 ### So what data is exported?
 
