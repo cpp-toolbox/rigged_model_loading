@@ -573,31 +573,42 @@ void RecIvpntRiggedCollector::rec_update_animation_matrices(float animation_time
 
 /*
  * @pre the asset of interest has been loaded already via parse model
+ * @p bone_id_to_lsatutb a mapping of bone id to local_space_animated_transform_upto_this_bone
  */
-void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
-                                                  std::string requested_animation, bool loop, bool restart,
-                                                  bool hold_last_frame) {
+void RecIvpntRiggedCollector::set_animated_bone_transforms(float delta_time, std::vector<glm::mat4> &bone_id_to_lsatutb,
+                                                           std::string requested_animation_name, bool loop,
+                                                           bool restart, bool hold_last_frame) {
+    GlobalLogSection _("set_animated_bone_transforms");
+
+    if (not collection_utils::contains_key(animation_name_to_assimp_animation_index, requested_animation_name)) {
+        global_logger->warn("you requested an animation with name: {}, but it didn't exist in the map",
+                            requested_animation_name);
+        auto num_bones = bone_unique_idx_to_info.size();
+        bone_id_to_lsatutb.assign(num_bones, glm::mat4(1.0f));
+        return;
+    }
+
     bool logging = false;
 
     if (logging) {
         std::cout << "delta_time: " << delta_time << "\n"
-                  << "requested_animation: " << requested_animation << "\n"
+                  << "requested_animation: " << requested_animation_name << "\n"
                   << "loop: " << std::boolalpha << loop << "\n"
                   << "restart: " << std::boolalpha << restart << "\n";
     }
 
-    if (current_animation_name != requested_animation or restart) {
+    if (current_animation_name != requested_animation_name or restart) {
         // restart the current animation if you request a new one
         current_animation_time = 0;
     }
 
-    current_animation_name = requested_animation;
+    current_animation_name = requested_animation_name;
     current_animation_time += delta_time;
 
     /*print_ai_animation(scene->mAnimations[0]);*/
     // uses 25 fps if ticks per second was not specified
 
-    int assimp_animation_index = animation_name_to_assimp_animation_index[requested_animation];
+    int assimp_animation_index = animation_name_to_assimp_animation_index[requested_animation_name];
     float ticks_per_second = (float)(scene->mAnimations[assimp_animation_index]->mTicksPerSecond != 0
                                          ? scene->mAnimations[assimp_animation_index]->mTicksPerSecond
                                          : 25.0f);
@@ -627,16 +638,17 @@ void RecIvpntRiggedCollector::set_bone_transforms(float delta_time, std::vector<
     if (logging) {
         std::cout << "=== STARTING UPDATE ANIMATION MATRICES ===" << std::endl;
     }
-    update_animation_matrices(animation_time_ticks, requested_animation);
+    update_animation_matrices(animation_time_ticks, requested_animation_name);
     if (logging) {
         std::cout << "=== ENDING UPDATE ANIMATION MATRICES ===" << std::endl;
     }
 
-    transforms_to_be_set.resize(bone_unique_idx_to_info.size());
+    auto num_bones = bone_unique_idx_to_info.size();
+    bone_id_to_lsatutb.resize(num_bones);
     /*spdlog::info("bone info size", bone_info.size());*/
-    for (unsigned int i = 0; i < bone_unique_idx_to_info.size(); i++) {
+    for (unsigned int i = 0; i < num_bones; i++) {
         /*spdlog::info("setting transform {}", bone_info[i].full_bone_space_to_local_space_transformation[0][0]);*/
-        transforms_to_be_set[i] = bone_unique_idx_to_info[i].local_space_animated_transform_upto_this_bone;
+        bone_id_to_lsatutb[i] = bone_unique_idx_to_info[i].local_space_animated_transform_upto_this_bone;
     }
 }
 
@@ -729,45 +741,55 @@ std::string get_full_node_path(const aiNode *node) {
 }
 
 /**
- * @brief Builds a mapping of armature names to animation indices based on animation names in the given scene.
+ * @brief Builds a mapping of armature names to assimp nimation indices based on animation names in the given scene.
+ *
+ * @note this documentation is copied from rigged model loading's readme, see there for more details
+ * @note This supports scenes with multiple different animations
+ *
+ * Armature: the collection of bones that we will animate
+ * Animation: a collection of keyframes of data containing the transform of a bone
+ * Action: an animation?
  *
  * This function processes animations from the provided `aiScene` and builds a mapping between armature names
- * and their corresponding animation indices. It ensures that only animations with correctly formatted names
- * are included in the mapping. This function operatates on the assumption the naming convention for armatures and
- * animations is as follows, (which is the defeault when blender exports fbx)
+ * and their corresponding animation indices.
  *
- * - Armatures must be named in the format: `X_..._armature`
- *   - `X` represents a unique identifier or descriptive name for the armature (e.g., `bottom_cylinder`, `robot`).
- *   - The `_armature` suffix is mandatory to identify the object as an armature.
+ * Passed in animations must adhere to the following in order to be parsed correctly, or else there are no guarentees
+ * on anything.
  *
- * - Animations (actions) must be named in the format: `Y_..._anim`
- *   - `Y` represents a unique identifier or descriptive name for the animation action (e.g., `bottom_cylinder`,
- * `robot_idle`).
- *   - The `_anim` suffix is mandatory to identify the object as an animation action.
+ * Armature and Animation Naming Convention (within blender)
+ *
+ * - Armatures must be named in the format: `X_armature`
+ *   eg) zombie_armature, survivor_armature
+ *
+ * - Animations (or actions) must be named in the format: `Y_..._X_anim` where X is the part prefix of the armature that
+ * this animation applies for.
+ *   eg) bite_zombie_anim, grab_zombie_anim
+ *
  *
  * - Additionally we are running under this assumption:
- *     - I've found that for each action (anim) you have when exported, there will be NUM_ARMATURES * NUM_ANIMATIONS
- *     different animations, each with the form armature_name|action_name, thus only a subset of these actions will be
- *     of interest to you, this function accounts for this and only stores matching pairs
+ *     - When you follow the above naming conventions, I've found that for each action (anim) you have when exported
+ * from blender, there will be NUM_ARMATURES * NUM_ANIMATIONS different animations, each with the form
+ * armature_name|action_name, eg) robot_armature|shoot_anim thus only a subset of these actions will be of interest to
+ * you, this function accounts for this and only stores matching pairs.
  *
- * - Again the mapping will include only those armature-animation pairs where the prefixes match:
- *   - Example: `bottom_cylinder_armature` and `bottom_cylinder_anim`
+ * - The returned mapping will include only those armature-animation pairs where the prefixes match:
+ *   - Example: `zombie_armature` and `zombie_swing_anim`,
  *   - When an armature has multiple actions (anims) then we will also match them up, for example
- *   `bottom_cylinder_armature` and `flying_bottom_cylinder_armature` will be matched
+ *   `zombie_bite_anim` and `zombie_death_anim` would also be matched.
  *   - If the armature prefix does not match the animation prefix, it will not be included in the mapping as wanted
  */
 
 std::unordered_map<std::string, std::unordered_map<std::string, int>>
 RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animation_index_map(const aiScene *scene) {
+    GlobalLogSection _("build_armature_name_to_animation_name_to_assimp_animation_index_map");
+
     if (!scene) {
+        global_logger->critical("Invalid scene pointer provided!");
         std::cerr << "Invalid scene pointer provided!" << std::endl;
         return {};
     }
 
-    bool logging = false;
-
-    if (logging)
-        std::cout << "Building armature to animation map..." << std::endl;
+    global_logger->info("Building armature to animation map...");
 
     std::unordered_map<std::string, std::unordered_map<std::string, int>> armature_to_animation_map;
 
@@ -780,8 +802,7 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
         std::string animation_name = animation->mName.C_Str();
         std::smatch match;
 
-        if (logging)
-            std::cout << "Processing animation " << animation_index << ": " << animation_name << std::endl;
+        global_logger->info("processing animation with index: {} and name: {} ", animation_index, animation_name);
 
         // match the animation name pattern
         if (std::regex_match(animation_name, match, animation_name_regex) && match.size() >= 3) {
@@ -790,12 +811,10 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
             std::string action_name = match[2].str();
             bool is_baked = match.size() == 4 && match[3].matched; // Check if _baked was captured
 
-            if (logging) {
-                std::cout << "  Parsed armature name: " << armature_name << std::endl;
-                std::cout << "  Parsed action name: " << action_name << std::endl;
-                std::cout << "  Stripped armature name: " << armature_base_name << std::endl;
-                std::cout << "  Baked: " << (is_baked ? "Yes" : "No") << std::endl;
-            }
+            global_logger->info("parsed armature name: {}", armature_name);
+            global_logger->info("parsed action name: {}", action_name);
+            global_logger->info("stripped armature name: {}", action_name);
+            global_logger->info("baked: {}", is_baked);
 
             // Normalize action name
             if (action_name == armature_base_name) {
@@ -804,8 +823,7 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
                 action_name = action_name.substr(0, action_name.size() - armature_base_name.size() - 1);
             }
 
-            if (logging)
-                std::cout << "  Final action name: " << action_name << std::endl;
+            global_logger->info("final action name: {}", action_name);
 
             animation_name_to_assimp_animation_index[action_name] = animation_index;
 
@@ -816,22 +834,21 @@ RecIvpntRiggedCollector::build_armature_name_to_animation_name_to_assimp_animati
             bool should_clobber = existing_entry == animation_map.end() || is_baked;
             if (should_clobber) {
                 animation_map[action_name] = animation_index;
-                if (logging)
-                    std::cout << "  Added to map: " << armature_name << " -> " << action_name << " -> "
-                              << animation_index << " (Baked: " << (is_baked ? "Yes" : "No") << ")" << std::endl;
+                // if (logging)
+                //     std::cout << "  Added to map: " << armature_name << " -> " << action_name << " -> "
+                //               << animation_index << " (Baked: " << (is_baked ? "Yes" : "No") << ")" << std::endl;
             } else {
-                if (logging)
-                    std::cout << "  Skipped: Keeping existing non-baked version." << std::endl;
+                // if (logging)
+                //     std::cout << "  Skipped: Keeping existing non-baked version." << std::endl;
             }
         } else {
-            if (logging)
-                std::cout << "  Skipped: Name does not match pattern." << std::endl;
+            // if (logging)
+            //     std::cout << "  Skipped: Name does not match pattern." << std::endl;
         }
     }
 
-    if (logging)
-        std::cout << "Completed building armature to animation map. Total entries: " << armature_to_animation_map.size()
-                  << std::endl;
+    global_logger->info("Completed building armature to animation map. Total entries: {}",
+                        armature_to_animation_map.size());
 
     return armature_to_animation_map;
 }
@@ -981,8 +998,10 @@ std::vector<draw_info::IVPNTRigged> RecIvpntRiggedCollector::parse_model_into_iv
 
     if (logging)
         print_all_animations(scene);
+
     armature_node_name_to_animation_name_to_assimp_animation_index =
         build_armature_name_to_animation_name_to_assimp_animation_index_map(scene);
+
     if (logging)
         print_antantaaim(armature_node_name_to_animation_name_to_assimp_animation_index);
 

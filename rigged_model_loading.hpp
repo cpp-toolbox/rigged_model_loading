@@ -60,10 +60,16 @@ class RecIvpntRiggedCollector {
     std::unordered_map<std::string, std::unordered_map<std::string, int>>
         armature_node_name_to_animation_name_to_assimp_animation_index;
 
-    // note that an animation might have multiple animation indices, because you
-    // get one for each armature involved in an animation, for our purposes, we simply use
-    // any such one of those armature indices, we run under the assumption that the metadata
-    // about each one is the same (which might be the cause of some errors)
+    /**
+     * @brief a mapping of animation name to the index into the array of animations for an assimp scene:
+     * scene->mAnimations[assimp_animation_index]
+     *
+     * @note an animation might have multiple animation indices, this is because you get one for each armature involved
+     * in that animation, for our purposes, we simply use any such one of those armature indices
+     *
+     * we run under the assumption that the metadata about each one is the same (which might be the cause of some
+     * errors)
+     */
     std::unordered_map<std::string, int> animation_name_to_assimp_animation_index;
 
     std::unordered_map<std::string, std::unordered_map<std::string, int>>
@@ -71,9 +77,9 @@ class RecIvpntRiggedCollector {
 
     // this is used for for eventually binding into uniforms with all the matrices, then in the shader
     // we also have a vertex attribute for each vertex which specifies the id of which matrices to use...
-    void set_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
-                             std::string requested_animation, bool loop = false, bool restart = false,
-                             bool hold_last_frame = false);
+    void set_animated_bone_transforms(float delta_time, std::vector<glm::mat4> &transforms_to_be_set,
+                                      std::string requested_animation, bool loop = false, bool restart = false,
+                                      bool hold_last_frame = false);
     void update_animation_matrices(float animation_time_ticks, std::string requested_animation);
     void rec_update_animation_matrices(float animation_time_ticks, glm::dmat4 parent_transform, aiNode *node,
                                        const aiScene *scene, int rec_depth, std::string requested_animation);
